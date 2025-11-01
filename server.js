@@ -17,14 +17,20 @@ connectDB();
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
 
-// CORS Configuration
+// CORS Configuration (allow all origins)
+// Note: Using wildcard origin disables credentials per CORS spec.
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true,
-  optionsSuccessStatus: 200
+  origin: '*',
+  credentials: false,
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
 };
 
 app.use(cors(corsOptions));
+// Note: In Express 5, bare "*" paths are invalid with path-to-regexp.
+// Global CORS middleware above already handles preflight (OPTIONS), so no explicit app.options('*') needed.
 
 // Body Parser Middleware
 app.use(bodyParser.json());
