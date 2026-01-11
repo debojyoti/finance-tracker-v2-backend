@@ -4,7 +4,7 @@ const expenseTransactionSchema = new mongoose.Schema({
   expenseTypeId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'ExpenseType',
-    required: [true, 'Expense type is required']
+    required: false
   },
   amount: {
     type: Number,

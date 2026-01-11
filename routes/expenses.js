@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createExpenses, getExpenses } = require('../controllers/expenseController');
+const { createExpenses, getExpenses, updateExpense, deleteExpense } = require('../controllers/expenseController');
 const { authenticate } = require('../middleware/auth');
 
 /**
@@ -15,8 +15,23 @@ router.post('/', authenticate, createExpenses);
  * @route   GET /api/expenses
  * @desc    Get expenses with pagination, filters, and sorting
  * @access  Private (requires JWT token)
- * @query   page, limit, startDate, endDate, categories, expenseType, need_or_want, sort
+ * @query   page, limit, startDate, endDate, month, year, categories, expenseType, need_or_want, sort
  */
 router.get('/', authenticate, getExpenses);
+
+/**
+ * @route   PUT /api/expenses/:id
+ * @desc    Update a single expense transaction
+ * @access  Private (requires JWT token)
+ * @body    { expenseTypeId, amount, expenseCategory, description, expense_date, need_or_want, could_have_saved }
+ */
+router.put('/:id', authenticate, updateExpense);
+
+/**
+ * @route   DELETE /api/expenses/:id
+ * @desc    Delete a single expense transaction
+ * @access  Private (requires JWT token)
+ */
+router.delete('/:id', authenticate, deleteExpense);
 
 module.exports = router;

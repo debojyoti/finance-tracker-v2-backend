@@ -109,7 +109,114 @@ const getTypes = async (req, res) => {
   }
 };
 
+/**
+ * Update expense type
+ * @route PUT /api/expense-types/:id
+ */
+const updateType = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { expenseTypeName } = req.body;
+    const userId = req.user.userId;
+
+    // Find type and check ownership
+    const type = await ExpenseType.findOne({ _id: id, userId });
+
+    if (!type) {
+      return res.status(404).json({
+        success: false,
+        message: 'Type not found or you do not have permission to update it'
+      });
+    }
+
+    // Check if new name conflicts with existing type
+    if (expenseTypeName && expenseTypeName.trim() !== type.expenseTypeName) {
+      const existingType = await ExpenseType.findOne({
+        expenseTypeName: expenseTypeName.trim(),
+        userId,
+        _id: { $ne: id }
+      });
+
+      if (existingType) {
+        return res.status(400).json({
+          success: false,
+          message: 'Type with this name already exists'
+        });
+      }
+    }
+
+    // Update type
+    const updatedType = await ExpenseType.findByIdAndUpdate(
+      id,
+      {
+        expenseTypeName: expenseTypeName?.trim() || type.expenseTypeName
+      },
+      { new: true, runValidators: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Type updated successfully',
+      data: {
+        type: updatedType
+      }
+    });
+  } catch (error) {
+    console.error('Update type error:', error);
+
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: messages
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update type',
+      error: process.env.NODE_ENV === 'development' ? error.message : {}
+    });
+  }
+};
+
+/**
+ * Delete expense type
+ * @route DELETE /api/expense-types/:id
+ */
+const deleteType = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId;
+
+    // Find and delete type (only if user owns it)
+    const type = await ExpenseType.findOneAndDelete({ _id: id, userId });
+
+    if (!type) {
+      return res.status(404).json({
+        success: false,
+        message: 'Type not found or you do not have permission to delete it'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Type deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete type error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to delete type',
+      error: process.env.NODE_ENV === 'development' ? error.message : {}
+    });
+  }
+};
+
 module.exports = {
   createType,
-  getTypes
+  getTypes,
+  updateType,
+  deleteType
 };

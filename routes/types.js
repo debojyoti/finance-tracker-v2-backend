@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createType, getTypes } = require('../controllers/typeController');
+const { createType, getTypes, updateType, deleteType } = require('../controllers/typeController');
 const { authenticate } = require('../middleware/auth');
 
 /**
@@ -18,5 +18,20 @@ router.post('/', authenticate, createType);
  * @query   search
  */
 router.get('/', authenticate, getTypes);
+
+/**
+ * @route   PUT /api/expense-types/:id
+ * @desc    Update expense type
+ * @access  Private (requires JWT token)
+ * @body    { expenseTypeName }
+ */
+router.put('/:id', authenticate, updateType);
+
+/**
+ * @route   DELETE /api/expense-types/:id
+ * @desc    Delete expense type
+ * @access  Private (requires JWT token)
+ */
+router.delete('/:id', authenticate, deleteType);
 
 module.exports = router;

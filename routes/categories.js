@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createCategory, getCategories } = require('../controllers/categoryController');
+const { createCategory, getCategories, updateCategory, deleteCategory } = require('../controllers/categoryController');
 const { authenticate } = require('../middleware/auth');
 
 /**
@@ -18,5 +18,20 @@ router.post('/', authenticate, createCategory);
  * @query   search
  */
 router.get('/', authenticate, getCategories);
+
+/**
+ * @route   PUT /api/expense-categories/:id
+ * @desc    Update expense category
+ * @access  Private (requires JWT token)
+ * @body    { expenseCategoryName, expenseCategoryIcon }
+ */
+router.put('/:id', authenticate, updateCategory);
+
+/**
+ * @route   DELETE /api/expense-categories/:id
+ * @desc    Delete expense category
+ * @access  Private (requires JWT token)
+ */
+router.delete('/:id', authenticate, deleteCategory);
 
 module.exports = router;
