@@ -285,9 +285,153 @@ const deleteExpense = async (req, res) => {
   }
 };
 
+/**
+ * Get daily expense analytics for current month
+ * @route GET /api/expenses/analytics/daily
+ */
+const getDailyExpenses = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { month, year } = req.query;
+
+    // Default to current month if not provided
+    const currentDate = new Date();
+    const monthNum = month ? parseInt(month) : currentDate.getMonth() + 1;
+    const yearNum = year ? parseInt(year) : currentDate.getFullYear();
+
+    // Get start and end of month
+    const startOfMonth = new Date(yearNum, monthNum - 1, 1);
+    const endOfMonth = new Date(yearNum, monthNum, 0, 23, 59, 59, 999);
+
+    // Aggregate expenses by day
+    const dailyExpenses = await ExpenseTransaction.aggregate([
+      {
+        $match: {
+          userId,
+          expense_date: { $gte: startOfMonth, $lte: endOfMonth }
+        }
+      },
+      {
+        $group: {
+          _id: { $dayOfMonth: '$expense_date' },
+          totalAmount: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { _id: 1 }
+      }
+    ]);
+
+    // Create array with all days of the month (fill missing days with 0)
+    const daysInMonth = endOfMonth.getDate();
+    const dailyData = Array.from({ length: daysInMonth }, (_, i) => {
+      const day = i + 1;
+      const found = dailyExpenses.find(d => d._id === day);
+      return {
+        day,
+        amount: found ? found.totalAmount : 0,
+        count: found ? found.count : 0
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        month: monthNum,
+        year: yearNum,
+        dailyExpenses: dailyData
+      }
+    });
+  } catch (error) {
+    console.error('Get daily expenses error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch daily expenses',
+      error: process.env.NODE_ENV === 'development' ? error.message : {}
+    });
+  }
+};
+
+/**
+ * Get top categories by total expense
+ * @route GET /api/expenses/analytics/top-categories
+ */
+const getTopCategories = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { month, year, limit = 10 } = req.query;
+
+    // Build query
+    const query = { userId };
+
+    // Month/Year filter
+    if (month && year) {
+      const monthNum = parseInt(month);
+      const yearNum = parseInt(year);
+      const startOfMonth = new Date(yearNum, monthNum - 1, 1);
+      const endOfMonth = new Date(yearNum, monthNum, 0, 23, 59, 59, 999);
+      query.expense_date = { $gte: startOfMonth, $lte: endOfMonth };
+    }
+
+    // Aggregate by category
+    const topCategories = await ExpenseTransaction.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: '$expenseCategory',
+          totalAmount: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { totalAmount: -1 } },
+      { $limit: parseInt(limit) },
+      {
+        $lookup: {
+          from: 'expensecategories',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'category'
+        }
+      },
+      {
+        $unwind: {
+          path: '$category',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          totalAmount: 1,
+          count: 1,
+          categoryName: '$category.expenseCategoryName',
+          categoryIcon: '$category.expenseCategoryIcon'
+        }
+      }
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        topCategories
+      }
+    });
+  } catch (error) {
+    console.error('Get top categories error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch top categories',
+      error: process.env.NODE_ENV === 'development' ? error.message : {}
+    });
+  }
+};
+
 module.exports = {
   createExpenses,
   getExpenses,
   updateExpense,
-  deleteExpense
+  deleteExpense,
+  getDailyExpenses,
+  getTopCategories
 };
