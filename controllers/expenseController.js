@@ -427,11 +427,107 @@ const getTopCategories = async (req, res) => {
   }
 };
 
+/**
+ * Get transactions by category for a specific month
+ * @route GET /api/expenses/analytics/category-transactions/:categoryId
+ */
+const getCategoryTransactions = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { categoryId } = req.params;
+    const { month, year, page = 1, limit = 50 } = req.query;
+
+    // Build query
+    const query = { 
+      userId,
+      expenseCategory: categoryId
+    };
+
+    // Month/Year filter
+    if (month && year) {
+      const monthNum = parseInt(month);
+      const yearNum = parseInt(year);
+      const startOfMonth = new Date(yearNum, monthNum - 1, 1);
+      const endOfMonth = new Date(yearNum, monthNum, 0, 23, 59, 59, 999);
+      query.expense_date = { $gte: startOfMonth, $lte: endOfMonth };
+    }
+
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const limitNum = parseInt(limit);
+
+    // Get transactions
+    const transactions = await ExpenseTransaction.find(query)
+      .populate('expenseCategory', 'expenseCategoryName expenseCategoryIcon')
+      .populate('expenseTypeId', 'expenseTypeName')
+      .sort({ expense_date: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
+
+    // Get total count
+    const total = await ExpenseTransaction.countDocuments(query);
+
+    // Calculate category stats
+    const stats = await ExpenseTransaction.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: null,
+          totalAmount: { $sum: '$amount' },
+          totalCouldHaveSaved: { $sum: '$could_have_saved' },
+          totalNeeds: {
+            $sum: {
+              $cond: [{ $eq: ['$need_or_want', 'need'] }, '$amount', 0]
+            }
+          },
+          totalWants: {
+            $sum: {
+              $cond: [{ $eq: ['$need_or_want', 'want'] }, '$amount', 0]
+            }
+          },
+          transactionCount: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const categoryStats = stats.length > 0 ? stats[0] : {
+      totalAmount: 0,
+      totalCouldHaveSaved: 0,
+      totalNeeds: 0,
+      totalWants: 0,
+      transactionCount: 0
+    };
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        transactions,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(total / limitNum),
+          totalItems: total,
+          itemsPerPage: limitNum
+        },
+        stats: categoryStats
+      }
+    });
+  } catch (error) {
+    console.error('Get category transactions error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch category transactions',
+      error: process.env.NODE_ENV === 'development' ? error.message : {}
+    });
+  }
+};
+
 module.exports = {
   createExpenses,
   getExpenses,
   updateExpense,
   deleteExpense,
   getDailyExpenses,
-  getTopCategories
+  getTopCategories,
+  getCategoryTransactions
 };

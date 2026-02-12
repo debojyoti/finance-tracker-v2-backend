@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createExpenses, getExpenses, updateExpense, deleteExpense, getDailyExpenses, getTopCategories } = require('../controllers/expenseController');
+const { createExpenses, getExpenses, updateExpense, deleteExpense, getDailyExpenses, getTopCategories, getCategoryTransactions } = require('../controllers/expenseController');
 const { authenticate } = require('../middleware/auth');
 
 /**
@@ -18,6 +18,14 @@ router.get('/analytics/daily', authenticate, getDailyExpenses);
  * @query   month, year, limit (default: 10)
  */
 router.get('/analytics/top-categories', authenticate, getTopCategories);
+
+/**
+ * @route   GET /api/expenses/analytics/category-transactions/:categoryId
+ * @desc    Get all transactions for a specific category in a month
+ * @access  Private (requires JWT token)
+ * @query   month, year, page, limit
+ */
+router.get('/analytics/category-transactions/:categoryId', authenticate, getCategoryTransactions);
 
 /**
  * @route   POST /api/expenses
