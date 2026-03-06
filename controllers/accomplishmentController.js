@@ -6,7 +6,7 @@ const Accomplishment = require('../models/Accomplishment');
  */
 const createAccomplishment = async (req, res) => {
   try {
-    const { title, minutes, date, tags } = req.body;
+    const { title, minutes, date, tags, type } = req.body;
     const userId = req.user.userId;
 
     if (!title) {
@@ -31,6 +31,7 @@ const createAccomplishment = async (req, res) => {
     }
 
     const accomplishment = new Accomplishment({
+      type: type || 'task',
       title: title.trim(),
       minutes,
       date,
@@ -79,12 +80,19 @@ const createAccomplishment = async (req, res) => {
 const getAccomplishments = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { date, month, year, tag } = req.query;
+    const { date, month, year, tag, startDate, endDate, type } = req.query;
 
     const query = { userId };
 
-    // Filter by specific date
-    if (date) {
+    // Filter by date range (for week view)
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      query.date = { $gte: start, $lte: end };
+    } else if (date) {
+      // Filter by specific date
       const startOfDay = new Date(date);
       startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date(date);
@@ -105,6 +113,11 @@ const getAccomplishments = async (req, res) => {
     // Filter by tag
     if (tag) {
       query.tags = tag;
+    }
+
+    // Filter by type
+    if (type) {
+      query.type = type;
     }
 
     const accomplishments = await Accomplishment.find(query)
@@ -140,7 +153,7 @@ const getAccomplishments = async (req, res) => {
 const updateAccomplishment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, minutes, date, tags } = req.body;
+    const { title, minutes, date, tags, type } = req.body;
     const userId = req.user.userId;
 
     const accomplishment = await Accomplishment.findOne({ _id: id, userId });
@@ -157,6 +170,7 @@ const updateAccomplishment = async (req, res) => {
     if (minutes !== undefined) updateData.minutes = minutes;
     if (date !== undefined) updateData.date = date;
     if (tags !== undefined) updateData.tags = tags;
+    if (type !== undefined) updateData.type = type;
 
     const updatedAccomplishment = await Accomplishment.findByIdAndUpdate(
       id,
@@ -221,9 +235,75 @@ const deleteAccomplishment = async (req, res) => {
   }
 };
 
+/**
+ * Bulk create accomplishments
+ * @route POST /api/accomplishments/bulk
+ */
+const bulkCreateAccomplishments = async (req, res) => {
+  try {
+    const { accomplishments } = req.body;
+    const userId = req.user.userId;
+
+    if (!accomplishments || !Array.isArray(accomplishments) || accomplishments.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Accomplishments array is required and must not be empty'
+      });
+    }
+
+    const accomplishmentsWithUser = accomplishments.map(item => ({
+      ...item,
+      title: item.title?.trim(),
+      type: item.type || 'task',
+      tags: item.tags || [],
+      userId
+    }));
+
+    for (let i = 0; i < accomplishmentsWithUser.length; i++) {
+      const item = accomplishmentsWithUser[i];
+      if (!item.title || !item.date || item.minutes === undefined || item.minutes === null) {
+        return res.status(400).json({
+          success: false,
+          message: `Accomplishment at index ${i} is missing required fields`
+        });
+      }
+    }
+
+    const created = await Accomplishment.insertMany(accomplishmentsWithUser);
+
+    const populated = await Accomplishment.find({
+      _id: { $in: created.map(a => a._id) }
+    }).populate('tags').lean();
+
+    return res.status(201).json({
+      success: true,
+      message: `${created.length} accomplishment(s) created successfully`,
+      data: { accomplishments: populated }
+    });
+  } catch (error) {
+    console.error('Bulk create accomplishments error:', error);
+
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: messages
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to create accomplishments',
+      error: process.env.NODE_ENV === 'development' ? error.message : {}
+    });
+  }
+};
+
 module.exports = {
   createAccomplishment,
   getAccomplishments,
   updateAccomplishment,
-  deleteAccomplishment
+  deleteAccomplishment,
+  bulkCreateAccomplishments
 };

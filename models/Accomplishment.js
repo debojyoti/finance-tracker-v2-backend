@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
 const accomplishmentSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    enum: ['task', 'meeting'],
+    required: true,
+    default: 'task'
+  },
   title: {
     type: String,
     required: [true, 'Title is required'],

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createAccomplishment, getAccomplishments, updateAccomplishment, deleteAccomplishment } = require('../controllers/accomplishmentController');
+const { createAccomplishment, getAccomplishments, updateAccomplishment, deleteAccomplishment, bulkCreateAccomplishments } = require('../controllers/accomplishmentController');
 const { authenticate } = require('../middleware/auth');
 
 /**
@@ -9,6 +9,7 @@ const { authenticate } = require('../middleware/auth');
  * @access  Private (requires JWT token)
  * @body    { title, minutes, date, tags }
  */
+router.post('/bulk', authenticate, bulkCreateAccomplishments);
 router.post('/', authenticate, createAccomplishment);
 
 /**
