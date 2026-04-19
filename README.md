@@ -1,6 +1,35 @@
-# Finance Tracker V2 - Backend
+# Finance Tracker V2 Backend
 
-Backend API for Finance Tracker V2 application built with Node.js, Express, MongoDB, and Firebase Admin SDK.
+Backend API for the personal finance tracker. This repo is the source of truth for auth, domain rules, persistence, and API contracts.
+
+## Purpose
+
+This repo powers a personal finance tracker used to:
+
+- log daily expenses
+- classify spending by category and type
+- analyze need vs want spending
+- estimate avoidable spend through `could_have_saved`
+- track savings and earnings transactions
+- record personal accomplishments with time spent and tags
+
+If you want to understand business rules first, this is the repo to read before the UI.
+
+## Features In This Repo
+
+- Firebase token verification and backend JWT session auth
+- Expense CRUD
+- Expense dashboard analytics
+- Category and type CRUD
+- Savings transaction APIs
+- Earnings transaction APIs
+- Accomplishment and accomplishment tag APIs
+
+## Read This First
+
+- `AGENTS.md`: agent rules and change expectations
+- `docs/backend-architecture.md`: architecture and data flow
+- `docs/backend-api-map.md`: route-to-file map
 
 ## Tech Stack
 
@@ -152,6 +181,21 @@ The server will start on `http://localhost:5000` (or the port specified in `.env
   - **Headers**: `Authorization: Bearer <token>`
   - **Query**: `page, limit, startDate, endDate, type, sort`
   - **Response**: `{ earnings: array, pagination: object, stats: object }`
+
+### Accomplishment Tags
+- `POST /api/accomplishment-tags`
+- `GET /api/accomplishment-tags`
+- `PUT /api/accomplishment-tags/:id`
+- `DELETE /api/accomplishment-tags/:id`
+
+### Accomplishments
+- `POST /api/accomplishments`
+- `POST /api/accomplishments/bulk`
+- `GET /api/accomplishments`
+- `PUT /api/accomplishments/:id`
+- `DELETE /api/accomplishments/:id`
+
+See `docs/backend-api-map.md` for route grouping and file ownership.
 
 ## MongoDB Models
 
