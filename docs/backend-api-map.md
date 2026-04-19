@@ -24,22 +24,42 @@ Base path: `/api/expenses`
 - `POST /`
   - create many expenses at once
   - file path: `controllers/expenseController.js#createExpenses`
+  - body per expense: `expenseTypeId`, `amount`, `expenseCategory`, `description`, `expense_date`, `need_or_want`, `could_have_saved`, optional `reportingMode`, optional `entryPurpose`
+  - when `entryPurpose = punishment` and no `reportingMode` is supplied, `reportingMode` defaults to `lifetime_only`
 - `GET /`
   - paginated expense list + aggregate stats
-  - supports `month`, `year`, `startDate`, `endDate`, `categories`, `expenseType`, `need_or_want`, `page`, `limit`, `sort`
+  - supports `month`, `year`, `weekDate`, `view`, `startDate`, `endDate`, `categories`, `expenseType`, `need_or_want`, `entryPurpose`, `page`, `limit`, `sort`
+  - `view` values: `week`, `month`, `year`, `lifetime` (applies reporting rules, overrides explicit date filters). Any other value returns `400` with a descriptive message.
 - `PUT /:id`
   - update one expense
+  - body may include `reportingMode` and `entryPurpose`; switching to `entryPurpose = punishment` without a reporting mode defaults `reportingMode` to `lifetime_only`
 - `DELETE /:id`
   - delete one expense
 
 ### Expense analytics
 
 - `GET /analytics/daily`
-  - daily totals for a month
+  - daily totals for a month (only counts `reportingMode = standard` entries so monthly charts stay clean)
 - `GET /analytics/top-categories`
   - top categories by amount
+  - supports the same `view` + `weekDate` query params as list; an unrecognized `view` returns `400`
 - `GET /analytics/category-transactions/:categoryId`
   - paginated transactions for one category
+  - supports the same `view` + `weekDate` query params as list; an unrecognized `view` returns `400`
+
+### Reporting rules (personal expenses)
+
+| `reportingMode`  | week | month | year | lifetime |
+| ---------------- | ---- | ----- | ---- | -------- |
+| `standard`       | yes  | yes   | yes  | yes      |
+| `yearly_only`    | no   | no    | yes  | yes      |
+| `lifetime_only`  | no   | no    | no   | yes      |
+
+`entryPurpose = punishment` entries default to `reportingMode = lifetime_only`, so they only appear in lifetime totals.
+
+All existing documents must be backfilled with `reportingMode` and `entryPurpose` before release. Run `node scripts/backfill-expense-reporting-fields.js` once. After migration, queries match only explicit enum values — no null fallback branches in runtime code.
+
+Week ranges are Monday 00:00 through Sunday 23:59:59.999 in server local time. Pass `weekDate` (any date within the target week) to select a non-current week; otherwise the current week is used.
 
 ## Expense Categories
 

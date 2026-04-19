@@ -83,12 +83,35 @@ Mongoose schemas for:
   - daily totals
   - top categories
   - category transaction drilldown
+- Supports weekly/monthly/yearly/lifetime reporting views via the `view` query parameter
 - Important fields:
   - `expense_date`
   - `expenseCategory`
   - `expenseTypeId`
   - `need_or_want`
   - `could_have_saved`
+  - `reportingMode` (`standard` | `yearly_only` | `lifetime_only`, default `standard`)
+  - `entryPurpose` (`regular` | `punishment`, default `regular`)
+
+#### Reporting rules
+
+- `standard`: counted in week, month, year, lifetime
+- `yearly_only`: counted only in year and lifetime
+- `lifetime_only`: counted only in lifetime
+- `entryPurpose = punishment` entries default to `reportingMode = lifetime_only` so they do not distort weekly or monthly totals
+- Weeks run Monday 00:00 through Sunday 23:59:59.999 in server local time
+- All documents must have `reportingMode` and `entryPurpose` set. Run `scripts/backfill-expense-reporting-fields.js` once before first release to backfill existing documents.
+- Analytics and list endpoints that accept `view` return `400` on an unrecognized value instead of silently widening results
+
+#### Pre-release migration
+
+Before deploying this feature for the first time, run the one-time backfill script:
+
+```
+node scripts/backfill-expense-reporting-fields.js
+```
+
+This idempotently sets `reportingMode = standard` and `entryPurpose = regular` on any existing documents that are missing those fields. After the script runs, query logic matches only explicit enum values.
 
 ### Categories and Types
 
@@ -146,7 +169,9 @@ If a new query does not use user scoping, it is likely wrong unless explicitly i
 
 - month/year filters
 - date-range filters
-- category/type/need-vs-want filters
+- Monday-to-Sunday week ranges
+- view-based filters (`week`/`month`/`year`/`lifetime`) that also apply reporting-mode rules
+- category/type/need-vs-want filters and `entryPurpose` filtering
 - paginated list queries
 - aggregate stats
 - daily chart data
