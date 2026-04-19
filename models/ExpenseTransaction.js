@@ -39,6 +39,22 @@ const expenseTransactionSchema = new mongoose.Schema({
     default: 0,
     min: [0, 'Could have saved amount cannot be negative']
   },
+  reportingMode: {
+    type: String,
+    enum: {
+      values: ['standard', 'yearly_only', 'lifetime_only'],
+      message: 'reportingMode must be standard, yearly_only, or lifetime_only'
+    },
+    default: 'standard'
+  },
+  entryPurpose: {
+    type: String,
+    enum: {
+      values: ['regular', 'punishment'],
+      message: 'entryPurpose must be regular or punishment'
+    },
+    default: 'regular'
+  },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -48,11 +64,12 @@ const expenseTransactionSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for faster queries
 expenseTransactionSchema.index({ userId: 1, expense_date: -1 });
 expenseTransactionSchema.index({ userId: 1, expenseCategory: 1 });
 expenseTransactionSchema.index({ userId: 1, expenseTypeId: 1 });
 expenseTransactionSchema.index({ userId: 1, need_or_want: 1 });
+expenseTransactionSchema.index({ userId: 1, reportingMode: 1 });
+expenseTransactionSchema.index({ userId: 1, entryPurpose: 1 });
 
 const ExpenseTransaction = mongoose.model('ExpenseTransaction', expenseTransactionSchema);
 

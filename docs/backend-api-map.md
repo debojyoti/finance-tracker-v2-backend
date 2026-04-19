@@ -30,6 +30,7 @@ Base path: `/api/expenses`
   - paginated expense list + aggregate stats
   - supports `month`, `year`, `weekDate`, `view`, `startDate`, `endDate`, `categories`, `expenseType`, `need_or_want`, `entryPurpose`, `page`, `limit`, `sort`
   - `view` values: `week`, `month`, `year`, `lifetime` (applies reporting rules, overrides explicit date filters). Any other value returns `400` with a descriptive message.
+  - `month` + `year` without `view`: equivalent to `view=month` — only `reportingMode = standard` entries are returned
 - `PUT /:id`
   - update one expense
   - body may include `reportingMode` and `entryPurpose`; switching to `entryPurpose = punishment` without a reporting mode defaults `reportingMode` to `lifetime_only`
@@ -43,9 +44,11 @@ Base path: `/api/expenses`
 - `GET /analytics/top-categories`
   - top categories by amount
   - supports the same `view` + `weekDate` query params as list; an unrecognized `view` returns `400`
+  - `month` + `year` without `view` also restricts to `reportingMode = standard`
 - `GET /analytics/category-transactions/:categoryId`
   - paginated transactions for one category
   - supports the same `view` + `weekDate` query params as list; an unrecognized `view` returns `400`
+  - `month` + `year` without `view` also restricts to `reportingMode = standard`
 
 ### Reporting rules (personal expenses)
 

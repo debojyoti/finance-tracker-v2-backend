@@ -2,6 +2,58 @@ const ExpenseTransaction = require('../models/ExpenseTransaction');
 const ExpenseCategory = require('../models/ExpenseCategory');
 const ExpenseType = require('../models/ExpenseType');
 
+const VALID_VIEWS = ['week', 'month', 'year', 'lifetime'];
+
+function getWeekRange(dateStr) {
+  const date = dateStr ? new Date(dateStr) : new Date();
+  const day = date.getDay(); // 0=Sun, 1=Mon...6=Sat
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(date);
+  monday.setDate(date.getDate() + diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return { start: monday, end: sunday };
+}
+
+function buildViewQuery(view, { weekDate, month, year } = {}) {
+  const now = new Date();
+  const dateFilter = {};
+  const reportingFilter = {};
+
+  if (view === 'week') {
+    const { start, end } = getWeekRange(weekDate);
+    dateFilter.expense_date = { $gte: start, $lte: end };
+    reportingFilter.reportingMode = 'standard';
+  } else if (view === 'month') {
+    const mNum = month ? parseInt(month) : now.getMonth() + 1;
+    const yNum = year ? parseInt(year) : now.getFullYear();
+    dateFilter.expense_date = {
+      $gte: new Date(yNum, mNum - 1, 1),
+      $lte: new Date(yNum, mNum, 0, 23, 59, 59, 999)
+    };
+    reportingFilter.reportingMode = 'standard';
+  } else if (view === 'year') {
+    const yNum = year ? parseInt(year) : now.getFullYear();
+    dateFilter.expense_date = {
+      $gte: new Date(yNum, 0, 1),
+      $lte: new Date(yNum, 11, 31, 23, 59, 59, 999)
+    };
+    reportingFilter.reportingMode = { $in: ['standard', 'yearly_only'] };
+  }
+  // lifetime: no date or reporting filter
+
+  return { ...dateFilter, ...reportingFilter };
+}
+
+function resolveReportingMode(entryPurpose, reportingMode) {
+  if (entryPurpose === 'punishment' && !reportingMode) {
+    return 'lifetime_only';
+  }
+  return reportingMode || 'standard';
+}
+
 /**
  * Create multiple expense transactions
  * @route POST /api/expenses
@@ -18,13 +70,12 @@ const createExpenses = async (req, res) => {
       });
     }
 
-    // Add userId to each expense
-    const expensesWithUser = expenses.map(expense => ({
-      ...expense,
-      userId
-    }));
+    const expensesWithUser = expenses.map(expense => {
+      const entryPurpose = expense.entryPurpose || 'regular';
+      const reportingMode = resolveReportingMode(entryPurpose, expense.reportingMode);
+      return { ...expense, userId, entryPurpose, reportingMode };
+    });
 
-    // Validate each expense has required fields
     for (let i = 0; i < expensesWithUser.length; i++) {
       const expense = expensesWithUser[i];
       if (!expense.amount || !expense.expenseCategory || !expense.need_or_want) {
@@ -35,7 +86,6 @@ const createExpenses = async (req, res) => {
       }
     }
 
-    // Create all expenses
     const createdExpenses = await ExpenseTransaction.insertMany(expensesWithUser);
 
     return res.status(201).json({
@@ -75,6 +125,8 @@ const getExpenses = async (req, res) => {
     const {
       page = 1,
       limit = 10,
+      view,
+      weekDate,
       startDate,
       endDate,
       month,
@@ -82,52 +134,45 @@ const getExpenses = async (req, res) => {
       categories,
       expenseType,
       need_or_want,
+      entryPurpose,
       sort = '-expense_date'
     } = req.query;
 
-    // Build query
+    if (view !== undefined && !VALID_VIEWS.includes(view)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid view "${view}". Must be one of: ${VALID_VIEWS.join(', ')}`
+      });
+    }
+
     const query = { userId };
 
-    // Month/Year filter (takes precedence over startDate/endDate)
-    if (month && year) {
+    if (view) {
+      Object.assign(query, buildViewQuery(view, { weekDate, month, year }));
+    } else if (month && year) {
       const monthNum = parseInt(month);
       const yearNum = parseInt(year);
-      const startOfMonth = new Date(yearNum, monthNum - 1, 1);
-      const endOfMonth = new Date(yearNum, monthNum, 0, 23, 59, 59, 999);
-      query.expense_date = { $gte: startOfMonth, $lte: endOfMonth };
-    }
-    // Date range filter
-    else if (startDate || endDate) {
+      query.expense_date = {
+        $gte: new Date(yearNum, monthNum - 1, 1),
+        $lte: new Date(yearNum, monthNum, 0, 23, 59, 59, 999)
+      };
+      query.reportingMode = 'standard';
+    } else if (startDate || endDate) {
       query.expense_date = {};
-      if (startDate) {
-        query.expense_date.$gte = new Date(startDate);
-      }
-      if (endDate) {
-        query.expense_date.$lte = new Date(endDate);
-      }
+      if (startDate) query.expense_date.$gte = new Date(startDate);
+      if (endDate) query.expense_date.$lte = new Date(endDate);
     }
 
-    // Category filter (can be comma-separated IDs)
     if (categories) {
-      const categoryIds = categories.split(',').map(id => id.trim());
-      query.expenseCategory = { $in: categoryIds };
+      query.expenseCategory = { $in: categories.split(',').map(id => id.trim()) };
     }
+    if (expenseType) query.expenseTypeId = expenseType;
+    if (need_or_want) query.need_or_want = need_or_want;
+    if (entryPurpose) query.entryPurpose = entryPurpose;
 
-    // Expense type filter
-    if (expenseType) {
-      query.expenseTypeId = expenseType;
-    }
-
-    // Need or want filter
-    if (need_or_want) {
-      query.need_or_want = need_or_want;
-    }
-
-    // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const limitNum = parseInt(limit);
 
-    // Execute query with pagination
     const expenses = await ExpenseTransaction.find(query)
       .populate('expenseCategory', 'expenseCategoryName expenseCategoryIcon')
       .populate('expenseTypeId', 'expenseTypeName')
@@ -136,10 +181,8 @@ const getExpenses = async (req, res) => {
       .limit(limitNum)
       .lean();
 
-    // Get total count for pagination
     const total = await ExpenseTransaction.countDocuments(query);
 
-    // Calculate aggregated data
     const aggregation = await ExpenseTransaction.aggregate([
       { $match: query },
       {
@@ -148,14 +191,10 @@ const getExpenses = async (req, res) => {
           totalAmount: { $sum: '$amount' },
           totalCouldHaveSaved: { $sum: '$could_have_saved' },
           totalNeeds: {
-            $sum: {
-              $cond: [{ $eq: ['$need_or_want', 'need'] }, '$amount', 0]
-            }
+            $sum: { $cond: [{ $eq: ['$need_or_want', 'need'] }, '$amount', 0] }
           },
           totalWants: {
-            $sum: {
-              $cond: [{ $eq: ['$need_or_want', 'want'] }, '$amount', 0]
-            }
+            $sum: { $cond: [{ $eq: ['$need_or_want', 'want'] }, '$amount', 0] }
           }
         }
       }
@@ -204,9 +243,12 @@ const updateExpense = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.userId;
-    const updateData = req.body;
+    const updateData = { ...req.body };
 
-    // Find expense and check ownership
+    if (updateData.entryPurpose === 'punishment' && !updateData.reportingMode) {
+      updateData.reportingMode = 'lifetime_only';
+    }
+
     const expense = await ExpenseTransaction.findOne({ _id: id, userId });
 
     if (!expense) {
@@ -216,7 +258,6 @@ const updateExpense = async (req, res) => {
       });
     }
 
-    // Update expense
     const updatedExpense = await ExpenseTransaction.findByIdAndUpdate(
       id,
       updateData,
@@ -261,7 +302,6 @@ const deleteExpense = async (req, res) => {
     const { id } = req.params;
     const userId = req.user.userId;
 
-    // Find and delete expense (only if user owns it)
     const expense = await ExpenseTransaction.findOneAndDelete({ _id: id, userId });
 
     if (!expense) {
@@ -286,7 +326,7 @@ const deleteExpense = async (req, res) => {
 };
 
 /**
- * Get daily expense analytics for current month
+ * Get daily expense analytics for a month
  * @route GET /api/expenses/analytics/daily
  */
 const getDailyExpenses = async (req, res) => {
@@ -294,21 +334,19 @@ const getDailyExpenses = async (req, res) => {
     const userId = req.user.userId;
     const { month, year } = req.query;
 
-    // Default to current month if not provided
     const currentDate = new Date();
     const monthNum = month ? parseInt(month) : currentDate.getMonth() + 1;
     const yearNum = year ? parseInt(year) : currentDate.getFullYear();
 
-    // Get start and end of month
     const startOfMonth = new Date(yearNum, monthNum - 1, 1);
     const endOfMonth = new Date(yearNum, monthNum, 0, 23, 59, 59, 999);
 
-    // Aggregate expenses by day
     const dailyExpenses = await ExpenseTransaction.aggregate([
       {
         $match: {
           userId,
-          expense_date: { $gte: startOfMonth, $lte: endOfMonth }
+          expense_date: { $gte: startOfMonth, $lte: endOfMonth },
+          reportingMode: 'standard'
         }
       },
       {
@@ -318,12 +356,9 @@ const getDailyExpenses = async (req, res) => {
           count: { $sum: 1 }
         }
       },
-      {
-        $sort: { _id: 1 }
-      }
+      { $sort: { _id: 1 } }
     ]);
 
-    // Create array with all days of the month (fill missing days with 0)
     const daysInMonth = endOfMonth.getDate();
     const dailyData = Array.from({ length: daysInMonth }, (_, i) => {
       const day = i + 1;
@@ -360,21 +395,29 @@ const getDailyExpenses = async (req, res) => {
 const getTopCategories = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { month, year, limit = 10 } = req.query;
+    const { view, weekDate, month, year, limit = 10 } = req.query;
 
-    // Build query
-    const query = { userId };
-
-    // Month/Year filter
-    if (month && year) {
-      const monthNum = parseInt(month);
-      const yearNum = parseInt(year);
-      const startOfMonth = new Date(yearNum, monthNum - 1, 1);
-      const endOfMonth = new Date(yearNum, monthNum, 0, 23, 59, 59, 999);
-      query.expense_date = { $gte: startOfMonth, $lte: endOfMonth };
+    if (view !== undefined && !VALID_VIEWS.includes(view)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid view "${view}". Must be one of: ${VALID_VIEWS.join(', ')}`
+      });
     }
 
-    // Aggregate by category
+    const query = { userId };
+
+    if (view) {
+      Object.assign(query, buildViewQuery(view, { weekDate, month, year }));
+    } else if (month && year) {
+      const monthNum = parseInt(month);
+      const yearNum = parseInt(year);
+      query.expense_date = {
+        $gte: new Date(yearNum, monthNum - 1, 1),
+        $lte: new Date(yearNum, monthNum, 0, 23, 59, 59, 999)
+      };
+      query.reportingMode = 'standard';
+    }
+
     const topCategories = await ExpenseTransaction.aggregate([
       { $match: query },
       {
@@ -428,35 +471,39 @@ const getTopCategories = async (req, res) => {
 };
 
 /**
- * Get transactions by category for a specific month
+ * Get transactions by category
  * @route GET /api/expenses/analytics/category-transactions/:categoryId
  */
 const getCategoryTransactions = async (req, res) => {
   try {
     const userId = req.user.userId;
     const { categoryId } = req.params;
-    const { month, year, page = 1, limit = 50 } = req.query;
+    const { view, weekDate, month, year, page = 1, limit = 50 } = req.query;
 
-    // Build query
-    const query = { 
-      userId,
-      expenseCategory: categoryId
-    };
-
-    // Month/Year filter
-    if (month && year) {
-      const monthNum = parseInt(month);
-      const yearNum = parseInt(year);
-      const startOfMonth = new Date(yearNum, monthNum - 1, 1);
-      const endOfMonth = new Date(yearNum, monthNum, 0, 23, 59, 59, 999);
-      query.expense_date = { $gte: startOfMonth, $lte: endOfMonth };
+    if (view !== undefined && !VALID_VIEWS.includes(view)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid view "${view}". Must be one of: ${VALID_VIEWS.join(', ')}`
+      });
     }
 
-    // Calculate pagination
+    const query = { userId, expenseCategory: categoryId };
+
+    if (view) {
+      Object.assign(query, buildViewQuery(view, { weekDate, month, year }));
+    } else if (month && year) {
+      const monthNum = parseInt(month);
+      const yearNum = parseInt(year);
+      query.expense_date = {
+        $gte: new Date(yearNum, monthNum - 1, 1),
+        $lte: new Date(yearNum, monthNum, 0, 23, 59, 59, 999)
+      };
+      query.reportingMode = 'standard';
+    }
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const limitNum = parseInt(limit);
 
-    // Get transactions
     const transactions = await ExpenseTransaction.find(query)
       .populate('expenseCategory', 'expenseCategoryName expenseCategoryIcon')
       .populate('expenseTypeId', 'expenseTypeName')
@@ -465,10 +512,8 @@ const getCategoryTransactions = async (req, res) => {
       .limit(limitNum)
       .lean();
 
-    // Get total count
     const total = await ExpenseTransaction.countDocuments(query);
 
-    // Calculate category stats
     const stats = await ExpenseTransaction.aggregate([
       { $match: query },
       {
@@ -477,14 +522,10 @@ const getCategoryTransactions = async (req, res) => {
           totalAmount: { $sum: '$amount' },
           totalCouldHaveSaved: { $sum: '$could_have_saved' },
           totalNeeds: {
-            $sum: {
-              $cond: [{ $eq: ['$need_or_want', 'need'] }, '$amount', 0]
-            }
+            $sum: { $cond: [{ $eq: ['$need_or_want', 'need'] }, '$amount', 0] }
           },
           totalWants: {
-            $sum: {
-              $cond: [{ $eq: ['$need_or_want', 'want'] }, '$amount', 0]
-            }
+            $sum: { $cond: [{ $eq: ['$need_or_want', 'want'] }, '$amount', 0] }
           },
           transactionCount: { $sum: 1 }
         }
