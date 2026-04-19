@@ -64,6 +64,47 @@ All existing documents must be backfilled with `reportingMode` and `entryPurpose
 
 Week ranges are Monday 00:00 through Sunday 23:59:59.999 in server local time. Pass `weekDate` (any date within the target week) to select a non-current week; otherwise the current week is used.
 
+## Budgets
+
+Base path: `/api/budgets`
+
+Files:
+
+- `routes/budgets.js`
+- `controllers/budgetController.js`
+- `models/BudgetSetting.js`
+- `models/WeeklyBudget.js`
+
+### Monthly default
+
+- `GET /monthly-default`
+  - returns `{ defaultMonthlyBudget, isSet }` for the current user
+  - `isSet: false` and `defaultMonthlyBudget: 0` if not yet configured
+- `PUT /monthly-default`
+  - body: `{ defaultMonthlyBudget: Number }`
+  - upserts a single `BudgetSetting` row per user
+  - does **not** update already-created `WeeklyBudget` rows
+
+### Weekly budget
+
+- `GET /weekly?weekDate=YYYY-MM-DD`
+  - returns the `WeeklyBudget` for the week containing `weekDate` (defaults to today)
+  - creates the row if it does not exist yet, deriving amount from current monthly default
+  - derivation formula: `monthlyDefault × 12 ÷ 52` rounded to 2 decimal places
+  - created row has `source = auto`
+- `PUT /weekly/:id`
+  - body: `{ amount: Number }`
+  - overrides the amount for one specific week
+  - sets `source = manual`
+  - ownership-checked via `userId`; returns `404` if not found or not owned
+
+### Behavior rules
+
+- One `BudgetSetting` per user (upserted, not inserted multiple times)
+- One `WeeklyBudget` per user per week start date (unique index enforces this)
+- Monthly default changes affect only future week creations
+- Manual weekly overrides are isolated to the specific week
+
 ## Expense Categories
 
 Base path: `/api/expense-categories`
@@ -195,3 +236,5 @@ Supported filters:
   - then update controller validation and docs
 - Change aggregated dashboard output:
   - `controllers/expenseController.js`
+- Change budget default or weekly budget logic:
+  - `controllers/budgetController.js`, `models/BudgetSetting.js`, `models/WeeklyBudget.js`

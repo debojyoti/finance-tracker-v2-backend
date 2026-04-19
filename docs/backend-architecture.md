@@ -53,6 +53,8 @@ Mongoose schemas for:
 - `EarningTransaction`
 - `Accomplishment`
 - `AccomplishmentTag`
+- `BudgetSetting`
+- `WeeklyBudget`
 
 ### `middleware/`
 
@@ -139,6 +141,15 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
 - Supports tags
 - Supports bulk create and weekly retrieval in the UI
 
+### Budgets
+
+- `BudgetSetting`: one document per user storing `defaultMonthlyBudget`
+- `WeeklyBudget`: one document per user per week; created on first access
+- Weekly budget amount is derived from the monthly default using: `monthlyDefault × 12 ÷ 52` (rounded to 2 decimal places)
+- Changing the monthly default does not retroactively update existing `WeeklyBudget` rows
+- Overriding a weekly budget sets `source = manual` and only affects that specific week
+- Week boundaries are Monday 00:00 through Sunday 23:59:59.999 in server local time
+
 ## Current Feature Completeness
 
 - Auth: implemented
@@ -146,6 +157,7 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
 - Expense analytics: implemented end-to-end
 - Categories/types: implemented end-to-end
 - Accomplishments/tags: implemented end-to-end
+- Budgets: backend implemented, frontend not yet built
 - Savings: backend only
 - Earnings: backend only
 
