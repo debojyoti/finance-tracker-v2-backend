@@ -184,7 +184,135 @@ const getEarnings = async (req, res) => {
   }
 };
 
+/**
+ * Update earning transaction
+ * @route PUT /api/earnings/:id
+ */
+const updateEarning = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { id } = req.params;
+    const { amount, type, title, createdOn } = req.body;
+
+    const updateData = {};
+
+    if (amount !== undefined) {
+      const amountValue = Number(amount);
+      if (Number.isNaN(amountValue) || amountValue < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Amount must be a non-negative number'
+        });
+      }
+      updateData.amount = amountValue;
+    }
+
+    if (type !== undefined) {
+      if (!type || !String(type).trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Type cannot be empty'
+        });
+      }
+      updateData.type = String(type).trim();
+    }
+
+    if (title !== undefined) {
+      if (!title || !String(title).trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Title cannot be empty'
+        });
+      }
+      updateData.title = String(title).trim();
+    }
+
+    if (createdOn !== undefined) {
+      const parsedDate = new Date(createdOn);
+      if (Number.isNaN(parsedDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: 'createdOn must be a valid date'
+        });
+      }
+      updateData.createdOn = parsedDate;
+    }
+
+    const earning = await EarningTransaction.findOneAndUpdate(
+      { _id: id, userId },
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!earning) {
+      return res.status(404).json({
+        success: false,
+        message: 'Earning transaction not found or you do not have permission to update it'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Earning transaction updated successfully',
+      data: {
+        earning
+      }
+    });
+  } catch (error) {
+    console.error('Update earning error:', error);
+
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: messages
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update earning transaction',
+      error: process.env.NODE_ENV === 'development' ? error.message : {}
+    });
+  }
+};
+
+/**
+ * Delete earning transaction
+ * @route DELETE /api/earnings/:id
+ */
+const deleteEarning = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { id } = req.params;
+
+    const earning = await EarningTransaction.findOneAndDelete({ _id: id, userId });
+
+    if (!earning) {
+      return res.status(404).json({
+        success: false,
+        message: 'Earning transaction not found or you do not have permission to delete it'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Earning transaction deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete earning error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to delete earning transaction',
+      error: process.env.NODE_ENV === 'development' ? error.message : {}
+    });
+  }
+};
+
 module.exports = {
   createEarning,
-  getEarnings
+  getEarnings,
+  updateEarning,
+  deleteEarning
 };

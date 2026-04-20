@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createEarning, getEarnings } = require('../controllers/earningController');
+const { createEarning, getEarnings, updateEarning, deleteEarning } = require('../controllers/earningController');
 const { authenticate } = require('../middleware/auth');
 
 /**
@@ -18,5 +18,20 @@ router.post('/', authenticate, createEarning);
  * @query   page, limit, startDate, endDate, type, sort
  */
 router.get('/', authenticate, getEarnings);
+
+/**
+ * @route   PUT /api/earnings/:id
+ * @desc    Update earning transaction
+ * @access  Private (requires JWT token)
+ * @body    { amount?, type?, title?, createdOn? }
+ */
+router.put('/:id', authenticate, updateEarning);
+
+/**
+ * @route   DELETE /api/earnings/:id
+ * @desc    Delete earning transaction
+ * @access  Private (requires JWT token)
+ */
+router.delete('/:id', authenticate, deleteEarning);
 
 module.exports = router;
