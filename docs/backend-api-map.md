@@ -249,14 +249,20 @@ Base path: `/api/office-expenses`
 - `POST /`
   - create an office expense
   - body: `title`, `amount`, `expenseDate`, `category`, optional `description`
+  - returns: `{ success, message, data: { expense } }`
 - `GET /`
   - list office expenses with pagination, filters, and sorting
-  - returns: expenses array, pagination info, stats with total amount
+  - returns: `{ success, message, data: { expenses, pagination, stats } }`
+  - `expenses` array with all matching office expenses
+  - `pagination` includes currentPage, totalPages, totalItems, itemsPerPage
+  - `stats` includes totalAmount (sum of all filtered expenses)
 - `PUT /:id`
   - update one office expense (ownership-checked)
   - body: `title`, `amount`, `expenseDate`, `category`, `description` (any field optional)
+  - returns: `{ success, message, data: { expense } }`
 - `DELETE /:id`
   - delete one office expense (ownership-checked)
+  - returns: `{ success, message }`
 
 Files:
 
