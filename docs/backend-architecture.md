@@ -111,7 +111,7 @@ Mongoose schemas for:
 
 - `RecurringExpense`: defines a repeating expense with `frequency` (`monthly` or `yearly`), `startDate`, and all expense fields inherited by the generated transactions.
 - On each expense list or analytics read, `utils/recurringExpenseMaterializer.js` is called first for the requesting user.
-- The materializer finds all active `RecurringExpense` definitions and inserts one `ExpenseTransaction` per due occurrence (month or year) from `startDate` through today.
+- The materializer finds all active `RecurringExpense` definitions and inserts one `ExpenseTransaction` per due occurrence (month or year) whose candidate date (1st of month or 1st of recurrence month in the year) is on or after the full `startDate` and up through today. A mid-month or mid-year `startDate` therefore does not produce a row in the same period it begins — the first row appears in the next due period.
 - Idempotency is guaranteed by a unique sparse index on `ExpenseTransaction.recurringOccurrenceKey`, which encodes `{recurringExpenseId}_{YYYY-MM}` for monthly and `{recurringExpenseId}_{YYYY}` for yearly occurrences. Duplicate-key errors on re-runs are silently ignored.
 - Generated transactions set `entryPurpose = regular` and inherit `reportingMode` from the definition, so they obey the same reporting-view rules as manual entries.
 - No cron job, worker, or background process is required.
@@ -141,9 +141,16 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
 
 ### Earnings
 
-- Simple transaction log
-- Types: `salary`, `freelance`, `others`
-- Backend exists, frontend feature page is still missing
+- `EarningTransaction`: transaction log with amount, type (string), title, createdOn, userId
+- `EarningType`: user-managed income type definitions with auto-seeded defaults (salary, freelance, others)
+- Supports flexible date filtering:
+  - `month` + `year`: exact month range
+  - `year` only: full year range (Jan 1 to Dec 31)
+  - `month` only: month in current year
+  - `startDate`/`endDate`: explicit range (overridden by month/year)
+- Returns type breakdown in stats object
+- Backend routes exist at `/api/earnings` (create, list with filters) and `/api/earning-types` (CRUD)
+- Frontend feature page is still missing
 
 ### Accomplishments
 

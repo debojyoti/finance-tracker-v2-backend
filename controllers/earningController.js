@@ -64,6 +64,8 @@ const getEarnings = async (req, res) => {
       limit = 10,
       startDate,
       endDate,
+      month,
+      year,
       type,
       sort = '-createdOn'
     } = req.query;
@@ -71,18 +73,51 @@ const getEarnings = async (req, res) => {
     // Build query
     const query = { userId };
 
-    // Date range filter
-    if (startDate || endDate) {
+    // Date range filter (handles explicit dates or month/year)
+    if (startDate || endDate || month || year) {
       query.createdOn = {};
-      if (startDate) {
-        query.createdOn.$gte = new Date(startDate);
-      }
-      if (endDate) {
-        query.createdOn.$lte = new Date(endDate);
+
+      if (month && year) {
+        // Month + year: exact month range
+        const yearNum = parseInt(year);
+        const monthNum = parseInt(month) - 1;
+
+        const start = new Date(yearNum, monthNum, 1);
+        const end = new Date(yearNum, monthNum + 1, 0, 23, 59, 59, 999);
+
+        query.createdOn.$gte = start;
+        query.createdOn.$lte = end;
+      } else if (year && !month) {
+        // Year only: full year range
+        const yearNum = parseInt(year);
+
+        const start = new Date(yearNum, 0, 1);
+        const end = new Date(yearNum, 11, 31, 23, 59, 59, 999);
+
+        query.createdOn.$gte = start;
+        query.createdOn.$lte = end;
+      } else if (month && !year) {
+        // Month only: use current year
+        const yearNum = new Date().getFullYear();
+        const monthNum = parseInt(month) - 1;
+
+        const start = new Date(yearNum, monthNum, 1);
+        const end = new Date(yearNum, monthNum + 1, 0, 23, 59, 59, 999);
+
+        query.createdOn.$gte = start;
+        query.createdOn.$lte = end;
+      } else {
+        // Explicit date range
+        if (startDate) {
+          query.createdOn.$gte = new Date(startDate);
+        }
+        if (endDate) {
+          query.createdOn.$lte = new Date(endDate);
+        }
       }
     }
 
-    // Type filter (salary/freelance/others)
+    // Type filter
     if (type) {
       query.type = type;
     }
@@ -101,7 +136,7 @@ const getEarnings = async (req, res) => {
     // Get total count for pagination
     const total = await EarningTransaction.countDocuments(query);
 
-    // Calculate aggregated data
+    // Calculate aggregated data by type
     const aggregation = await EarningTransaction.aggregate([
       { $match: query },
       {
@@ -112,23 +147,19 @@ const getEarnings = async (req, res) => {
       }
     ]);
 
-    const stats = {
-      totalEarnings: 0,
-      bySalary: 0,
-      byFreelance: 0,
-      byOthers: 0
-    };
+    // Calculate total earnings
+    let totalEarnings = 0;
+    const byType = {};
 
     aggregation.forEach(item => {
-      if (item._id === 'salary') {
-        stats.bySalary = item.totalAmount;
-      } else if (item._id === 'freelance') {
-        stats.byFreelance = item.totalAmount;
-      } else if (item._id === 'others') {
-        stats.byOthers = item.totalAmount;
-      }
-      stats.totalEarnings += item.totalAmount;
+      byType[item._id] = item.totalAmount;
+      totalEarnings += item.totalAmount;
     });
+
+    const stats = {
+      totalEarnings,
+      byType
+    };
 
     return res.status(200).json({
       success: true,

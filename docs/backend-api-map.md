@@ -94,6 +94,8 @@ Files:
 
 Before every expense list and analytics response, `materializeRecurringExpenses(userId)` runs and converts all due recurring definitions into real `ExpenseTransaction` rows. This is idempotent: a unique sparse index on `recurringOccurrenceKey` (`{id}_{YYYY-MM}` or `{id}_{YYYY}`) prevents duplicate rows for the same occurrence.
 
+A candidate row is only inserted when its `expense_date` (1st of the month for monthly, 1st of the recurrence month for yearly) is on or after the definition's full `startDate`. This means a mid-month or mid-year `startDate` does not generate a row in the same period it begins.
+
 ## Budgets
 
 Base path: `/api/budgets`
@@ -193,7 +195,12 @@ Supported filters:
 Base path: `/api/earnings`
 
 - `POST /`
+  - create an earning transaction
+  - body: `amount`, `type`, `title`
+  - `type` is a string and can be any user-managed type or default (`salary`, `freelance`, `others`)
 - `GET /`
+  - list earning transactions with pagination, filtering, and type breakdown
+  - returns: earnings array, pagination info, stats with total and breakdown by type
 
 Files:
 
@@ -201,14 +208,39 @@ Files:
 - `controllers/earningController.js`
 - `models/EarningTransaction.js`
 
-Supported filters:
+Supported filters on `GET /`:
 
-- `startDate`
-- `endDate`
-- `type`
-- `page`
-- `limit`
-- `sort`
+- `startDate` — filter by start date (ISO format)
+- `endDate` — filter by end date (ISO format)
+- `month` — filter by month (1-12); when supplied with `year`, returns that exact month; when supplied alone, uses current year
+- `year` — filter by year (YYYY); when supplied alone, returns the full year (Jan 1 to Dec 31); when supplied with `month`, returns that exact month
+- `type` — filter by earning type
+- `page` — pagination (default 1)
+- `limit` — items per page (default 10)
+- `sort` — sort order (default `-createdOn`)
+
+**Note:** `month` and `year` filters override `startDate` and `endDate`. Priority: `month`+`year` (exact month) > `year` only (full year) > `month` only (current year) > explicit `startDate`/`endDate`.
+
+## Earning Types
+
+Base path: `/api/earning-types`
+
+- `POST /`
+  - create a new earning type
+  - body: `name`
+- `GET /`
+  - list all earning types for the current user
+  - on first fetch, auto-creates default types: `salary`, `freelance`, `others`
+- `PUT /:id`
+  - update an earning type (ownership-checked)
+- `DELETE /:id`
+  - delete an earning type (ownership-checked)
+
+Files:
+
+- `routes/earningTypes.js`
+- `controllers/earningTypeController.js`
+- `models/EarningType.js`
 
 ## Accomplishment Tags
 

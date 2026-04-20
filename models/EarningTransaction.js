@@ -9,10 +9,7 @@ const earningTransactionSchema = new mongoose.Schema({
   type: {
     type: String,
     required: [true, 'Type is required'],
-    enum: {
-      values: ['salary', 'freelance', 'others'],
-      message: 'Type must be either "salary", "freelance", or "others"'
-    }
+    trim: true
   },
   title: {
     type: String,
