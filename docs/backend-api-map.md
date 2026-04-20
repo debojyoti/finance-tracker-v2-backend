@@ -242,6 +242,39 @@ Files:
 - `controllers/earningTypeController.js`
 - `models/EarningType.js`
 
+## Office Expenses
+
+Base path: `/api/office-expenses`
+
+- `POST /`
+  - create an office expense
+  - body: `title`, `amount`, `expenseDate`, `category`, optional `description`
+- `GET /`
+  - list office expenses with pagination, filters, and sorting
+  - returns: expenses array, pagination info, stats with total amount
+- `PUT /:id`
+  - update one office expense (ownership-checked)
+  - body: `title`, `amount`, `expenseDate`, `category`, `description` (any field optional)
+- `DELETE /:id`
+  - delete one office expense (ownership-checked)
+
+Files:
+
+- `routes/officeExpenses.js`
+- `controllers/officeExpenseController.js`
+- `models/OfficeExpense.js`
+
+Supported filters on `GET /`:
+
+- `startDate` — filter by start date (ISO format)
+- `endDate` — filter by end date (ISO format)
+- `category` — filter by category string
+- `page` — pagination (default 1)
+- `limit` — items per page (default 10)
+- `sort` — sort order (default `-expenseDate`)
+
+**Note:** Office expenses are completely separate from personal expense views and are not included in dashboard totals.
+
 ## Accomplishment Tags
 
 Base path: `/api/accomplishment-tags`

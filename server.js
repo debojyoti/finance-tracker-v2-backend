@@ -53,6 +53,7 @@ app.use('/api/accomplishment-tags', require('./routes/accomplishmentTags'));
 app.use('/api/accomplishments', require('./routes/accomplishments'));
 app.use('/api/budgets', require('./routes/budgets'));
 app.use('/api/recurring-expenses', require('./routes/recurringExpenses'));
+app.use('/api/office-expenses', require('./routes/officeExpenses'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

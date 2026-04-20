@@ -50,6 +50,7 @@ Mongoose schemas for:
 - `ExpenseType`
 - `ExpenseTransaction`
 - `RecurringExpense`
+- `OfficeExpense`
 - `SavingTransaction`
 - `EarningTransaction`
 - `Accomplishment`
@@ -152,6 +153,16 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
 - Backend routes exist at `/api/earnings` (create, list with filters) and `/api/earning-types` (CRUD)
 - Frontend feature page is still missing
 
+### Office Expenses
+
+- Separate transaction log for office-related spending
+- Fields: title, amount, expenseDate, category (string), description, userId
+- Intentionally simple; no reimbursement, approval, or vendor workflows
+- Supports CRUD via `/api/office-expenses`
+- Date range and category filtering supported
+- Completely separate from personal expense analytics and dashboard totals
+- User-owned and scoped by userId
+
 ### Accomplishments
 
 - Time-tracking style feature
@@ -178,7 +189,8 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
 - Accomplishments/tags: implemented end-to-end
 - Budgets: backend implemented, frontend not yet built
 - Savings: backend only
-- Earnings: backend only
+- Earnings: backend implemented, frontend implemented
+- Office expenses: backend implemented, frontend implemented
 
 ## Data Ownership Pattern
 
