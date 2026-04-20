@@ -238,6 +238,13 @@ Base path: `/api/earnings`
 - `GET /`
   - list earning transactions with pagination, filtering, and type breakdown
   - returns: earnings array, pagination info, stats with total and breakdown by type
+- `PUT /:id`
+  - update one earning transaction (ownership-checked)
+  - body: `amount`, `type`, `title`, `createdOn` (any field optional)
+  - returns: `{ success, message, data: { earning } }`
+- `DELETE /:id`
+  - delete one earning transaction (ownership-checked)
+  - returns: `{ success, message }`
 
 Files:
 
@@ -257,6 +264,8 @@ Supported filters on `GET /`:
 - `sort` — sort order (default `-createdOn`)
 
 **Note:** `month` and `year` filters override `startDate` and `endDate`. Priority: `month`+`year` (exact month) > `year` only (full year) > `month` only (current year) > explicit `startDate`/`endDate`.
+
+Edits and deletes are user-scoped through `userId` and do not affect other users' records.
 
 ## Earning Types
 

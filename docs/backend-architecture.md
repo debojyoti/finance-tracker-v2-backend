@@ -166,7 +166,7 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
   - `month` only: month in current year
   - `startDate`/`endDate`: explicit range (overridden by month/year)
 - Returns type breakdown in stats object
-- Backend routes exist at `/api/earnings` (create, list with filters) and `/api/earning-types` (CRUD)
+- Backend routes exist at `/api/earnings` (create, list with filters, update, delete) and `/api/earning-types` (CRUD)
 - Frontend page implemented at `/earnings` with income CRUD and type management
 
 ### Office Expenses
