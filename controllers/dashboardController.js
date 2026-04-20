@@ -300,7 +300,7 @@ const getDashboardOverview = async (req, res) => {
     // Convert to day labels (Mon-Sun format)
     const weeklyChartSeries = Array.from({ length: 7 }, (_, i) => {
       const dayDate = new Date(weekStart);
-      dayDate.setDate(weekDate + i);
+      dayDate.setDate(weekStart.getDate() + i);
       const day = dayDate.getDate();
       const dayName = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i];
       const found = weeklyChartData.find(d => d._id === day);

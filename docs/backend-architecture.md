@@ -269,6 +269,19 @@ If a new query does not use user scoping, it is likely wrong unless explicitly i
 - top category chart data
 - category-specific drilldown
 
+### Dashboard
+
+`controllers/dashboardController.js` assembles dashboard data from multiple sources:
+
+- Queries personal expenses (with reporting-mode filtering) for week/month/year totals
+- Queries business expenses for yearly cash-out only
+- Queries earnings for yearly cash-in
+- Queries punishment entries for lifetime total
+- Builds top-category lists for week, month, year using MongoDB `$lookup` for category details
+- Generates chart series: weekly spend by day, monthly cumulative spend (12 months), yearly cash flow by month
+- All queries scoped to `userId`
+- Materializes recurring expenses before expense reads
+
 ### Savings and earnings
 
 These use a lighter pattern:
@@ -282,7 +295,7 @@ These use a lighter pattern:
 - Frontend expects backend JWT auth, not Firebase auth, for normal API calls.
 - Frontend service methods map closely to current route names.
 - Frontend expects response envelopes shaped as `response.data.<payload>`.
-- Dashboard depends on expense stats and analytics endpoints.
+- Dashboard page calls single `/api/dashboard/overview` endpoint for all dashboard data.
 - Expenses page depends on categories and types being fetched separately.
 
 ## Risks And Gotchas
