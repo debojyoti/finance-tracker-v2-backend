@@ -238,6 +238,13 @@ const updateEarning = async (req, res) => {
       updateData.createdOn = parsedDate;
     }
 
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one field must be provided to update'
+      });
+    }
+
     const earning = await EarningTransaction.findOneAndUpdate(
       { _id: id, userId },
       updateData,
