@@ -55,6 +55,7 @@ app.use('/api/budgets', require('./routes/budgets'));
 app.use('/api/recurring-expenses', require('./routes/recurringExpenses'));
 app.use('/api/office-expenses', require('./routes/officeExpenses'));
 app.use('/api/business-expenses', require('./routes/businessExpenses'));
+app.use('/api/dashboard', require('./routes/dashboard'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

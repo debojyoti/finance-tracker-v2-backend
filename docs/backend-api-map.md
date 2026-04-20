@@ -401,6 +401,37 @@ Supported filters:
 - `tag`
 - `type`
 
+## Dashboard
+
+Base path: `/api/dashboard`
+
+### Overview
+
+- `GET /overview`
+  - returns comprehensive dashboard payload with weekly, yearly, and lifetime stats
+  - returns: `{ success, message, data }`
+  - file path: `controllers/dashboardController.js#getDashboardOverview`
+  - response includes:
+    - `week`: this week's spent, budget, could-have-saved, remaining, date range
+    - `year`: this year's personal spend, business spend, cash in, cash out, year
+    - `punishment`: lifetime punishment total
+    - `topCategories`: arrays of top categories for week, month, year
+    - `charts`: data series for weekly spend (by day), monthly cumulative (last 12 months), yearly cash flow (by month)
+
+Files:
+
+- `routes/dashboard.js`
+- `controllers/dashboardController.js`
+
+### Inclusion rules for dashboard
+
+- Personal expenses: counted in week, month, year, lifetime totals (reportingMode = standard or yearly_only)
+- Business expenses: counted **only** in yearly cash-out
+- Office expenses: **never** counted in any dashboard total
+- Savings/investments: **never** counted in any dashboard total
+- Income (earnings): counted in yearly cash-in
+- Punishment entries: only their lifetime total is reported separately
+
 ## Which File Should I Change?
 
 - Change request validation:
@@ -412,6 +443,7 @@ Supported filters:
   - model file
   - then update controller validation and docs
 - Change aggregated dashboard output:
-  - `controllers/expenseController.js`
+  - `controllers/expenseController.js` for expense analytics
+  - `controllers/dashboardController.js` for dashboard overview
 - Change budget default or weekly budget logic:
   - `controllers/budgetController.js`, `models/BudgetSetting.js`, `models/WeeklyBudget.js`

@@ -205,6 +205,25 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
 - Overriding a weekly budget sets `source = manual` and only affects that specific week
 - Week boundaries are Monday 00:00 through Sunday 23:59:59.999 in server local time
 
+### Dashboard
+
+- Single-endpoint overview at `/api/dashboard/overview` assembles all dashboard data in one call
+- Returns:
+  - Weekly metrics: spent, budget, could-have-saved, remaining
+  - Yearly metrics: personal spend, business spend, cash in, cash out
+  - Lifetime punishment total
+  - Top categories for week, month, year (10 per period)
+  - Chart data: weekly spend by day, monthly cumulative spend, yearly cash flow
+- Inclusion rules:
+  - Personal expenses (standard + yearly_only reporting modes) counted in week/month/year
+  - Business expenses counted **only** in yearly cash-out
+  - Office expenses **excluded** from all dashboard totals
+  - Savings/investments **excluded** from all dashboard totals
+  - Earnings counted in yearly cash-in
+  - Punishment total reported separately (lifetime only)
+- Materializes recurring expenses before each read
+- Week boundaries follow expense reporting rules (Monday-Sunday, server local time)
+
 ## Current Feature Completeness
 
 - Auth: implemented
@@ -219,6 +238,7 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
 - Office expenses: backend implemented, frontend implemented
 - Business expenses: backend implemented, frontend implemented
 - Savings and investments: backend implemented (manual transactions + recurring plans), frontend not yet built
+- Dashboard overview: backend implemented, frontend UI rebuild pending
 
 ## Data Ownership Pattern
 
