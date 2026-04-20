@@ -1,6 +1,7 @@
 const ExpenseTransaction = require('../models/ExpenseTransaction');
 const ExpenseCategory = require('../models/ExpenseCategory');
 const ExpenseType = require('../models/ExpenseType');
+const { materializeRecurringExpenses } = require('../utils/recurringExpenseMaterializer');
 
 const VALID_VIEWS = ['week', 'month', 'year', 'lifetime'];
 
@@ -122,6 +123,7 @@ const createExpenses = async (req, res) => {
 const getExpenses = async (req, res) => {
   try {
     const userId = req.user.userId;
+    await materializeRecurringExpenses(userId);
     const {
       page = 1,
       limit = 10,
@@ -332,6 +334,7 @@ const deleteExpense = async (req, res) => {
 const getDailyExpenses = async (req, res) => {
   try {
     const userId = req.user.userId;
+    await materializeRecurringExpenses(userId);
     const { month, year } = req.query;
 
     const currentDate = new Date();
@@ -395,6 +398,7 @@ const getDailyExpenses = async (req, res) => {
 const getTopCategories = async (req, res) => {
   try {
     const userId = req.user.userId;
+    await materializeRecurringExpenses(userId);
     const { view, weekDate, month, year, limit = 10 } = req.query;
 
     if (view !== undefined && !VALID_VIEWS.includes(view)) {
@@ -477,6 +481,7 @@ const getTopCategories = async (req, res) => {
 const getCategoryTransactions = async (req, res) => {
   try {
     const userId = req.user.userId;
+    await materializeRecurringExpenses(userId);
     const { categoryId } = req.params;
     const { view, weekDate, month, year, page = 1, limit = 50 } = req.query;
 

@@ -49,6 +49,7 @@ Mongoose schemas for:
 - `ExpenseCategory`
 - `ExpenseType`
 - `ExpenseTransaction`
+- `RecurringExpense`
 - `SavingTransaction`
 - `EarningTransaction`
 - `Accomplishment`
@@ -69,6 +70,7 @@ Mongoose schemas for:
 ### `utils/`
 
 - `jwt.js`: token generation and verification for backend sessions
+- `recurringExpenseMaterializer.js`: lazily materializes due recurring expense definitions into `ExpenseTransaction` rows before reads
 
 ## Domain Model Summary
 
@@ -104,6 +106,15 @@ Mongoose schemas for:
 - Weeks run Monday 00:00 through Sunday 23:59:59.999 in server local time
 - All documents must have `reportingMode` and `entryPurpose` set. Run `scripts/backfill-expense-reporting-fields.js` once before first release to backfill existing documents.
 - Analytics and list endpoints that accept `view` return `400` on an unrecognized value instead of silently widening results
+
+### Recurring Expenses
+
+- `RecurringExpense`: defines a repeating expense with `frequency` (`monthly` or `yearly`), `startDate`, and all expense fields inherited by the generated transactions.
+- On each expense list or analytics read, `utils/recurringExpenseMaterializer.js` is called first for the requesting user.
+- The materializer finds all active `RecurringExpense` definitions and inserts one `ExpenseTransaction` per due occurrence (month or year) from `startDate` through today.
+- Idempotency is guaranteed by a unique sparse index on `ExpenseTransaction.recurringOccurrenceKey`, which encodes `{recurringExpenseId}_{YYYY-MM}` for monthly and `{recurringExpenseId}_{YYYY}` for yearly occurrences. Duplicate-key errors on re-runs are silently ignored.
+- Generated transactions set `entryPurpose = regular` and inherit `reportingMode` from the definition, so they obey the same reporting-view rules as manual entries.
+- No cron job, worker, or background process is required.
 
 #### Pre-release migration
 
@@ -154,6 +165,7 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
 
 - Auth: implemented
 - Expenses: implemented end-to-end
+- Recurring expenses: definition CRUD implemented; lazy materialization into ExpenseTransaction implemented
 - Expense analytics: implemented end-to-end
 - Categories/types: implemented end-to-end
 - Accomplishments/tags: implemented end-to-end

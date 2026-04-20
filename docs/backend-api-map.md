@@ -64,6 +64,36 @@ All existing documents must be backfilled with `reportingMode` and `entryPurpose
 
 Week ranges are Monday 00:00 through Sunday 23:59:59.999 in server local time. Pass `weekDate` (any date within the target week) to select a non-current week; otherwise the current week is used.
 
+## Recurring Expenses
+
+Base path: `/api/recurring-expenses`
+
+- `POST /`
+  - create a recurring expense definition
+  - body: `title`, `amount`, `frequency` (`monthly`|`yearly`), `expenseCategory`, `need_or_want`, optional `startDate`, `expenseTypeId`, `reportingMode`, `description`, `isActive`
+  - file path: `controllers/recurringExpenseController.js#createRecurringExpense`
+- `GET /`
+  - list definitions for current user
+  - supports `frequency`, `isActive`, `sort` filters
+  - file path: `controllers/recurringExpenseController.js#getRecurringExpenses`
+- `PUT /:id`
+  - update a definition (ownership-checked)
+  - file path: `controllers/recurringExpenseController.js#updateRecurringExpense`
+- `DELETE /:id`
+  - delete a definition (ownership-checked)
+  - file path: `controllers/recurringExpenseController.js#deleteRecurringExpense`
+
+Files:
+
+- `routes/recurringExpenses.js`
+- `controllers/recurringExpenseController.js`
+- `models/RecurringExpense.js`
+- `utils/recurringExpenseMaterializer.js`
+
+### Lazy materialization
+
+Before every expense list and analytics response, `materializeRecurringExpenses(userId)` runs and converts all due recurring definitions into real `ExpenseTransaction` rows. This is idempotent: a unique sparse index on `recurringOccurrenceKey` (`{id}_{YYYY-MM}` or `{id}_{YYYY}`) prevents duplicate rows for the same occurrence.
+
 ## Budgets
 
 Base path: `/api/budgets`

@@ -59,6 +59,16 @@ const expenseTransactionSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: [true, 'User ID is required']
+  },
+  recurringExpenseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'RecurringExpense',
+    required: false
+  },
+  // Deterministic key for idempotent materialization: "<recurringExpenseId>_<YYYY-MM>" or "<recurringExpenseId>_<YYYY>"
+  recurringOccurrenceKey: {
+    type: String,
+    required: false
   }
 }, {
   timestamps: true
@@ -70,6 +80,7 @@ expenseTransactionSchema.index({ userId: 1, expenseTypeId: 1 });
 expenseTransactionSchema.index({ userId: 1, need_or_want: 1 });
 expenseTransactionSchema.index({ userId: 1, reportingMode: 1 });
 expenseTransactionSchema.index({ userId: 1, entryPurpose: 1 });
+expenseTransactionSchema.index({ recurringOccurrenceKey: 1 }, { unique: true, sparse: true });
 
 const ExpenseTransaction = mongoose.model('ExpenseTransaction', expenseTransactionSchema);
 
