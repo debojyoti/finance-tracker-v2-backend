@@ -208,18 +208,22 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
 ### Dashboard
 
 - Single-endpoint overview at `/api/dashboard/overview` assembles all dashboard data in one call
+- Response envelope: `{ success: true, message, data: {...} }` following repo-wide convention
 - Returns:
   - Weekly metrics: spent, budget, could-have-saved, remaining
   - Yearly metrics: personal spend, business spend, cash in, cash out
   - Lifetime punishment total
   - Top categories for week, month, year (10 per period)
-  - Chart data: weekly spend by day, monthly cumulative spend, yearly cash flow
+  - Chart data:
+    - `weeklySpend`: 7-day series (Mon-Sun) with daily personal spend (standard reporting only)
+    - `monthlyCumulative`: 12-month running total of personal spend (standard + yearly_only reporting) within current year
+    - `yearlyCashFlow`: 12-month breakdown of cash-in (earnings) vs cash-out (personal + business) within current year
 - Inclusion rules:
-  - Personal expenses (standard + yearly_only reporting modes) counted in week/month/year
-  - Business expenses counted **only** in yearly cash-out
-  - Office expenses **excluded** from all dashboard totals
-  - Savings/investments **excluded** from all dashboard totals
-  - Earnings counted in yearly cash-in
+  - Personal expenses (standard + yearly_only reporting modes) counted in week/month/year and cumulative charts
+  - Business expenses counted **only** in yearly cash-out and yearly cash-flow chart
+  - Office expenses **excluded** from all dashboard totals and charts
+  - Savings/investments **excluded** from all dashboard totals and charts
+  - Earnings counted in yearly cash-in and yearly cash-flow chart
   - Punishment total reported separately (lifetime only)
 - Materializes recurring expenses before each read
 - Week boundaries follow expense reporting rules (Monday-Sunday, server local time)

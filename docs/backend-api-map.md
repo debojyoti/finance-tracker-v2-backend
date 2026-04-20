@@ -415,8 +415,11 @@ Base path: `/api/dashboard`
     - `week`: this week's spent, budget, could-have-saved, remaining, date range
     - `year`: this year's personal spend, business spend, cash in, cash out, year
     - `punishment`: lifetime punishment total
-    - `topCategories`: arrays of top categories for week, month, year
-    - `charts`: data series for weekly spend (by day), monthly cumulative (last 12 months), yearly cash flow (by month)
+    - `topCategories`: arrays of top categories for week, month, year (10 items each)
+    - `charts`: data series for:
+      - `weeklySpend`: 7 days (Mon-Sun) with daily spend amounts
+      - `monthlyCumulative`: 12 months (Jan-Dec current year) with cumulative (running total) spend amounts
+      - `yearlyCashFlow`: 12 months (Jan-Dec current year) with monthly cash-in and cash-out breakdown
 
 Files:
 

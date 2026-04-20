@@ -310,8 +310,9 @@ const getDashboardOverview = async (req, res) => {
       };
     });
 
-    // Monthly cumulative spend (last 12 months)
+    // Monthly cumulative spend (last 12 months) - running total
     const monthlyCumulativeData = [];
+    let cumulativeTotal = 0;
     for (let i = 11; i >= 0; i--) {
       const monthDate = new Date(currentYear, now.getMonth() - i, 1);
       const m = monthDate.getMonth();
@@ -335,9 +336,10 @@ const getDashboardOverview = async (req, res) => {
         }
       ]);
 
+      const monthAmount = monthAgg.length > 0 ? monthAgg[0].totalAmount : 0;
+      cumulativeTotal += monthAmount;
       const monthName = monthDate.toLocaleString('en-US', { month: 'short' });
-      const amount = monthAgg.length > 0 ? monthAgg[0].totalAmount : 0;
-      monthlyCumulativeData.push({ month: monthName, amount });
+      monthlyCumulativeData.push({ month: monthName, amount: cumulativeTotal });
     }
 
     // Yearly cash in vs cash out by month
@@ -409,6 +411,7 @@ const getDashboardOverview = async (req, res) => {
 
     return res.status(200).json({
       success: true,
+      message: 'Dashboard overview retrieved successfully',
       data: {
         week: {
           spent: weeklySpent,
