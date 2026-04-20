@@ -55,6 +55,7 @@ Mongoose schemas for:
 - `AccomplishmentTag`
 - `BudgetSetting`
 - `WeeklyBudget`
+- `RecurringExpense`
 
 ### `middleware/`
 
@@ -150,6 +151,25 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
 - Overriding a weekly budget sets `source = manual` and only affects that specific week
 - Week boundaries are Monday 00:00 through Sunday 23:59:59.999 in server local time
 
+### Recurring Expenses
+
+- `RecurringExpense`: per-user definitions for fixed monthly or yearly expenses (e.g. subscriptions, rent, annual fees)
+- Stored as intent definitions only — no materialization/scheduler logic in this phase. A later phase will materialize due definitions into real `ExpenseTransaction` rows on read
+- Recurrence is intentionally limited to `monthly` and `yearly`. No weekly, daily, cron-style, or custom interval rules
+- Fields:
+  - `title` (string, required)
+  - `amount` (number, required, non-negative)
+  - `frequency` (`monthly` | `yearly`, required)
+  - `startDate` (date, defaults to now — when the recurrence is considered to begin)
+  - `isActive` (boolean, defaults to `true` — inactive definitions are paused but retained)
+  - `expenseCategory` (ref to `ExpenseCategory`, required)
+  - `expenseTypeId` (ref to `ExpenseType`, optional)
+  - `need_or_want` (`need` | `want`, required)
+  - `reportingMode` (`standard` | `yearly_only` | `lifetime_only`, optional, defaults to `standard`) — propagated to materialized expense rows later
+  - `description` (string, optional)
+  - `userId` (ref to `User`, required)
+- All reads and writes are scoped by `userId`. There is no cross-user listing path.
+
 ## Current Feature Completeness
 
 - Auth: implemented
@@ -158,6 +178,7 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
 - Categories/types: implemented end-to-end
 - Accomplishments/tags: implemented end-to-end
 - Budgets: backend implemented, frontend not yet built
+- Recurring expenses: CRUD backend implemented (definitions only); materialization into real expense rows is a later phase
 - Savings: backend only
 - Earnings: backend only
 

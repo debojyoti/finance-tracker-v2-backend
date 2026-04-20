@@ -105,6 +105,43 @@ Files:
 - Monthly default changes affect only future week creations
 - Manual weekly overrides are isolated to the specific week
 
+## Recurring Expenses
+
+Base path: `/api/recurring-expenses`
+
+Files:
+
+- `routes/recurringExpenses.js`
+- `controllers/recurringExpenseController.js`
+- `models/RecurringExpense.js`
+
+Stores per-user definitions for fixed monthly/yearly expenses. This phase exposes CRUD only; a later phase will use these definitions to materialize real `ExpenseTransaction` rows on read.
+
+- `POST /`
+  - create one recurring expense definition
+  - body: `{ title, amount, frequency, startDate?, isActive?, expenseCategory, expenseTypeId?, need_or_want, reportingMode?, description? }`
+  - required: `title`, `amount`, `frequency`, `expenseCategory`, `need_or_want`
+  - `frequency` must be `monthly` or `yearly`
+  - `reportingMode` must be one of `standard` | `yearly_only` | `lifetime_only` (defaults to `standard`)
+  - `isActive` defaults to `true`; `startDate` defaults to now
+- `GET /`
+  - list all recurring expense definitions for the current user
+  - query: `frequency` (`monthly` | `yearly`), `isActive` (`true` | `false`), `sort` (default `-createdAt`)
+  - populates `expenseCategory` and `expenseTypeId`
+- `PUT /:id`
+  - update one recurring expense definition
+  - ownership-checked via `userId`; returns `404` if not found or not owned
+  - `userId` in body is ignored
+- `DELETE /:id`
+  - delete one recurring expense definition
+  - ownership-checked via `userId`; returns `404` if not found or not owned
+
+### Scope and rules
+
+- All queries and mutations are scoped by `req.user.userId`
+- Only `monthly` and `yearly` frequencies are supported — no weekly/daily/custom rules
+- Definitions are metadata; they do not create expense rows on their own in this phase
+
 ## Expense Categories
 
 Base path: `/api/expense-categories`
