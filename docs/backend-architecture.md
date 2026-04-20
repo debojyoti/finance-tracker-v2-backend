@@ -154,7 +154,7 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
   - `userId`
 - Recurring plans can be created, updated, and deleted; they do not auto-generate transactions
 - Backend routes exist at `/api/savings` (transactions) and `/api/savings/plans` (definitions)
-- Frontend feature page is still missing
+- Frontend page implemented at `/savings` with transaction and recurring plan management
 
 ### Earnings
 
@@ -167,7 +167,7 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
   - `startDate`/`endDate`: explicit range (overridden by month/year)
 - Returns type breakdown in stats object
 - Backend routes exist at `/api/earnings` (create, list with filters) and `/api/earning-types` (CRUD)
-- Frontend feature page is still missing
+- Frontend page implemented at `/earnings` with income CRUD and type management
 
 ### Office Expenses
 
@@ -230,19 +230,18 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
 
 ## Current Feature Completeness
 
-- Auth: implemented
-- Expenses: implemented end-to-end
-- Recurring expenses: definition CRUD implemented; lazy materialization into ExpenseTransaction implemented
+- Auth: implemented end-to-end
+- Expenses: implemented end-to-end (with weekly/monthly/yearly/lifetime reporting views)
+- Recurring expenses: definition CRUD and lazy materialization implemented end-to-end
 - Expense analytics: implemented end-to-end
 - Categories/types: implemented end-to-end
 - Accomplishments/tags: implemented end-to-end
-- Budgets: backend implemented, frontend not yet built
-- Savings: backend only
-- Earnings: backend implemented, frontend implemented
-- Office expenses: backend implemented, frontend implemented
-- Business expenses: backend implemented, frontend implemented
-- Savings and investments: backend implemented (manual transactions + recurring plans), frontend not yet built
-- Dashboard overview: backend implemented, frontend UI rebuild pending
+- Budgets: implemented end-to-end (monthly default + weekly snapshots)
+- Earnings/Income: implemented end-to-end (with type management)
+- Office expenses: implemented end-to-end
+- Business expenses: implemented end-to-end
+- Savings and investments: implemented end-to-end (manual transactions + recurring plans)
+- Dashboard overview: implemented end-to-end (single endpoint with weekly, monthly, yearly, and lifetime sections)
 
 ## Data Ownership Pattern
 
