@@ -19,6 +19,14 @@ const savingTransactionSchema = new mongoose.Schema({
     required: [true, 'Title is required'],
     trim: true
   },
+  assetType: {
+    type: String,
+    required: [true, 'Asset type is required'],
+    enum: {
+      values: ['saving', 'investment'],
+      message: 'Asset type must be either "saving" or "investment"'
+    }
+  },
   createdOn: {
     type: Date,
     default: Date.now
@@ -42,6 +50,7 @@ const savingTransactionSchema = new mongoose.Schema({
 savingTransactionSchema.index({ userId: 1, createdOn: -1 });
 savingTransactionSchema.index({ userId: 1, type: 1 });
 savingTransactionSchema.index({ userId: 1, category: 1 });
+savingTransactionSchema.index({ userId: 1, assetType: 1 });
 
 const SavingTransaction = mongoose.model('SavingTransaction', savingTransactionSchema);
 

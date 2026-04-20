@@ -171,24 +171,61 @@ Files:
 
 Base path: `/api/savings`
 
+### Manual Transactions
+
 - `POST /`
+  - create a saving or investment transaction
+  - body: `amount`, `type` (`add`|`withdraw`), `title`, `category` (`fixed`|`topup`), `assetType` (`saving`|`investment`)
+  - returns: `{ success, message, data: { saving } }`
 - `GET /`
+  - list savings/investment transactions with pagination, filters, and sorting
+  - returns: `{ success, message, data: { savings, pagination, stats } }`
+  - `stats` includes totalAdded, totalWithdrawn, netSavings (or assetType-scoped stats)
+
+### Recurring Plans
+
+- `POST /plans`
+  - create a recurring saving/investment plan
+  - body: `title`, `amount`, `frequency` (`monthly`|`yearly`), `assetType` (`saving`|`investment`), `category` (`fixed`|`topup`), `startDate`
+  - returns: `{ success, message, data: { plan } }`
+- `GET /plans`
+  - list recurring saving/investment plans
+  - returns: `{ success, message, data: { plans } }`
+- `PUT /plans/:id`
+  - update a recurring plan (ownership-checked)
+  - body: any field optional
+  - returns: `{ success, message, data: { plan } }`
+- `DELETE /plans/:id`
+  - delete a recurring plan (ownership-checked)
+  - returns: `{ success, message }`
 
 Files:
 
 - `routes/savings.js`
 - `controllers/savingController.js`
 - `models/SavingTransaction.js`
+- `models/RecurringSavingPlan.js`
 
-Supported filters:
+Supported filters on `GET /`:
 
-- `startDate`
-- `endDate`
-- `type`
-- `category`
-- `page`
-- `limit`
-- `sort`
+- `startDate` — filter by start date (ISO format)
+- `endDate` — filter by end date (ISO format)
+- `month` — filter by month (1-12); when supplied with `year`, returns that exact month; when supplied alone, uses current year
+- `year` — filter by year (YYYY); when supplied alone, returns the full year; when supplied with `month`, returns that exact month
+- `type` — filter by transaction type (add/withdraw)
+- `category` — filter by category (fixed/topup)
+- `assetType` — filter by asset type (saving/investment)
+- `page` — pagination (default 1)
+- `limit` — items per page (default 10)
+- `sort` — sort order (default `-createdOn`)
+
+Supported filters on `GET /plans`:
+
+- `isActive` — filter by active status (true/false)
+- `assetType` — filter by asset type (saving/investment)
+- `sort` — sort order (default `-createdOn`)
+
+**Note:** Savings and investments are completely separate from personal expense, office expense, and business expense analytics. They do not appear in dashboard spend totals.
 
 ## Earnings
 
@@ -280,6 +317,45 @@ Supported filters on `GET /`:
 - `sort` — sort order (default `-expenseDate`)
 
 **Note:** Office expenses are completely separate from personal expense views and are not included in dashboard totals.
+
+## Business Expenses
+
+Base path: `/api/business-expenses`
+
+- `POST /`
+  - create a business expense
+  - body: `title`, `amount`, `expenseDate`, `category`, optional `description`
+  - returns: `{ success, message, data: { expense } }`
+- `GET /`
+  - list business expenses with pagination, filters, and sorting
+  - returns: `{ success, message, data: { expenses, pagination, stats } }`
+  - `expenses` array with all matching business expenses
+  - `pagination` includes currentPage, totalPages, totalItems, itemsPerPage
+  - `stats` includes totalAmount (sum of all filtered expenses)
+- `PUT /:id`
+  - update one business expense (ownership-checked)
+  - body: `title`, `amount`, `expenseDate`, `category`, `description` (any field optional)
+  - returns: `{ success, message, data: { expense } }`
+- `DELETE /:id`
+  - delete one business expense (ownership-checked)
+  - returns: `{ success, message }`
+
+Files:
+
+- `routes/businessExpenses.js`
+- `controllers/businessExpenseController.js`
+- `models/BusinessExpense.js`
+
+Supported filters on `GET /`:
+
+- `startDate` — filter by start date (ISO format)
+- `endDate` — filter by end date (ISO format)
+- `category` — filter by category string
+- `page` — pagination (default 1)
+- `limit` — items per page (default 10)
+- `sort` — sort order (default `-expenseDate`)
+
+**Note:** Business expenses are completely separate from personal expense views and are not included in dashboard totals.
 
 ## Accomplishment Tags
 

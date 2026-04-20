@@ -51,7 +51,9 @@ Mongoose schemas for:
 - `ExpenseTransaction`
 - `RecurringExpense`
 - `OfficeExpense`
+- `BusinessExpense`
 - `SavingTransaction`
+- `RecurringSavingPlan`
 - `EarningTransaction`
 - `Accomplishment`
 - `AccomplishmentTag`
@@ -133,12 +135,26 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
 - Queried by user
 - Used heavily by the expense creation and editing UI
 
-### Savings
+### Savings and Investments
 
-- Simple transaction log
-- Types: `add`, `withdraw`
-- Categories: `fixed`, `topup`
-- Backend exists, frontend feature page is still missing
+- Transaction log for saving and investment activity
+- `SavingTransaction` fields:
+  - `amount` (number, non-negative)
+  - `type`: `add` or `withdraw`
+  - `title` (string)
+  - `assetType`: `saving` or `investment`
+  - `category`: `fixed` or `topup`
+  - `createdOn` (date)
+  - `userId`
+- Supports month/year filtering and section-only totals (separate from expense analytics)
+- `RecurringSavingPlan` defines recurring saving/investment entries:
+  - `title`, `amount`, `frequency` (`monthly` or `yearly`)
+  - `assetType`, `category`, `startDate`
+  - `isActive` flag
+  - `userId`
+- Recurring plans can be created, updated, and deleted; they do not auto-generate transactions
+- Backend routes exist at `/api/savings` (transactions) and `/api/savings/plans` (definitions)
+- Frontend feature page is still missing
 
 ### Earnings
 
@@ -161,6 +177,16 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
 - Supports CRUD via `/api/office-expenses`
 - Date range and category filtering supported
 - Completely separate from personal expense analytics and dashboard totals
+- User-owned and scoped by userId
+
+### Business Expenses
+
+- Separate transaction log for business-related spending
+- Fields: title, amount, expenseDate, category (string), description, userId
+- Intentionally simple; no vendor, client, or project tracking
+- Supports CRUD via `/api/business-expenses`
+- Date range and category filtering supported
+- Completely separate from personal expense analytics, office expenses, and dashboard totals
 - User-owned and scoped by userId
 
 ### Accomplishments
@@ -191,6 +217,8 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
 - Savings: backend only
 - Earnings: backend implemented, frontend implemented
 - Office expenses: backend implemented, frontend implemented
+- Business expenses: backend implemented, frontend implemented
+- Savings and investments: backend implemented (manual transactions + recurring plans), frontend not yet built
 
 ## Data Ownership Pattern
 
