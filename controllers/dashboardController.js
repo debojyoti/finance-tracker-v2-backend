@@ -1,72 +1,74 @@
 const ExpenseTransaction = require('../models/ExpenseTransaction');
 const BusinessExpense = require('../models/BusinessExpense');
 const EarningTransaction = require('../models/EarningTransaction');
-const WeeklyBudget = require('../models/WeeklyBudget');
+const BudgetSetting = require('../models/BudgetSetting');
 const { materializeRecurringExpenses } = require('../utils/recurringExpenseMaterializer');
 
-function getWeekRange(dateStr) {
-  const date = dateStr ? new Date(dateStr) : new Date();
-  const day = date.getDay(); // 0=Sun, 1=Mon...6=Sat
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  const monday = new Date(date);
-  monday.setDate(date.getDate() + diffToMonday);
-  monday.setHours(0, 0, 0, 0);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
-  return { start: monday, end: sunday };
+function parseSelectedPeriod(query) {
+  const now = new Date();
+  const selectedMonth = query.month === undefined ? now.getMonth() + 1 : Number(query.month);
+  const selectedYear = query.year === undefined ? now.getFullYear() : Number(query.year);
+
+  if (!Number.isInteger(selectedMonth) || selectedMonth < 1 || selectedMonth > 12) {
+    return { error: 'month must be an integer between 1 and 12' };
+  }
+
+  if (!Number.isInteger(selectedYear) || selectedYear < 1970 || selectedYear > 9999) {
+    return { error: 'year must be a four-digit year' };
+  }
+
+  return { selectedMonth, selectedYear };
 }
 
 /**
  * Get comprehensive dashboard overview
  * @route GET /api/dashboard/overview
- * Returns: weekly stats, yearly stats, punishment total, top categories, and chart data
+ * Returns: selected month stats, yearly stats, punishment total, top categories, and chart data
  */
 const getDashboardOverview = async (req, res) => {
   try {
     const userId = req.user.userId;
     await materializeRecurringExpenses(userId);
 
-    const now = new Date();
-    const currentYear = now.getFullYear();
+    const period = parseSelectedPeriod(req.query);
+    if (period.error) {
+      return res.status(400).json({
+        success: false,
+        message: period.error
+      });
+    }
 
-    // ====== This Week ======
-    const { start: weekStart, end: weekEnd } = getWeekRange();
+    const { selectedMonth, selectedYear } = period;
+    const monthIndex = selectedMonth - 1;
 
-    // Weekly spend (personal expenses, reportingMode = standard)
-    const weeklyExpenseAgg = await ExpenseTransaction.aggregate([
+    // ====== Selected Month ======
+    const monthStart = new Date(selectedYear, monthIndex, 1);
+    const monthEnd = new Date(selectedYear, monthIndex + 1, 0, 23, 59, 59, 999);
+
+    const monthlyExpenseAgg = await ExpenseTransaction.aggregate([
       {
         $match: {
           userId,
-          expense_date: { $gte: weekStart, $lte: weekEnd },
+          expense_date: { $gte: monthStart, $lte: monthEnd },
           reportingMode: 'standard'
         }
       },
       {
         $group: {
           _id: null,
-          totalAmount: { $sum: '$amount' },
-          totalCouldHaveSaved: { $sum: '$could_have_saved' }
+          totalAmount: { $sum: '$amount' }
         }
       }
     ]);
 
-    const weeklySpent = weeklyExpenseAgg.length > 0 ? weeklyExpenseAgg[0].totalAmount : 0;
-    const weeklyCouldHaveSaved = weeklyExpenseAgg.length > 0 ? weeklyExpenseAgg[0].totalCouldHaveSaved : 0;
+    const monthSpent = monthlyExpenseAgg.length > 0 ? monthlyExpenseAgg[0].totalAmount : 0;
+    const budgetSetting = await BudgetSetting.findOne({ userId }).lean();
+    const monthBudget = budgetSetting ? budgetSetting.defaultMonthlyBudget : 0;
+    const monthRemaining = monthBudget - monthSpent;
 
-    // Weekly budget
-    const weeklyBudget = await WeeklyBudget.findOne({
-      userId,
-      weekStartDate: { $lte: weekStart },
-      weekEndDate: { $gte: weekStart }
-    }).lean();
-
-    const weekBudgetAmount = weeklyBudget ? weeklyBudget.amount : 0;
-    const weekRemaining = weekBudgetAmount - weeklySpent;
-
-    // ====== This Year ======
-    const yearStart = new Date(currentYear, 0, 1);
-    const yearEnd = new Date(currentYear, 11, 31, 23, 59, 59, 999);
+    // ====== Selected Year ======
+    const yearStart = new Date(selectedYear, 0, 1);
+    const yearEnd = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
 
     // Year personal spend (reportingMode = standard or yearly_only)
     const yearlyPersonalAgg = await ExpenseTransaction.aggregate([
@@ -144,54 +146,8 @@ const getDashboardOverview = async (req, res) => {
 
     const lifetimePunishment = punishmentAgg.length > 0 ? punishmentAgg[0].totalAmount : 0;
 
-    // ====== Top Categories (Week, Month, Year) ======
-    // Weekly top categories
-    const weeklyTopCats = await ExpenseTransaction.aggregate([
-      {
-        $match: {
-          userId,
-          expense_date: { $gte: weekStart, $lte: weekEnd },
-          reportingMode: 'standard'
-        }
-      },
-      {
-        $group: {
-          _id: '$expenseCategory',
-          totalAmount: { $sum: '$amount' },
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { totalAmount: -1 } },
-      { $limit: 10 },
-      {
-        $lookup: {
-          from: 'expensecategories',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'category'
-        }
-      },
-      {
-        $unwind: {
-          path: '$category',
-          preserveNullAndEmptyArrays: true
-        }
-      },
-      {
-        $project: {
-          _id: 1,
-          totalAmount: 1,
-          count: 1,
-          categoryName: '$category.expenseCategoryName',
-          categoryIcon: '$category.expenseCategoryIcon'
-        }
-      }
-    ]);
-
-    // Monthly top categories (current month)
-    const monthStart = new Date(currentYear, now.getMonth(), 1);
-    const monthEnd = new Date(currentYear, now.getMonth() + 1, 0, 23, 59, 59, 999);
-
+    // ====== Top Categories (Month, Year) ======
+    // Monthly top categories (selected month)
     const monthlyTopCats = await ExpenseTransaction.aggregate([
       {
         $match: {
@@ -234,7 +190,7 @@ const getDashboardOverview = async (req, res) => {
       }
     ]);
 
-    // Yearly top categories (current year)
+    // Yearly top categories (selected year)
     const yearlyTopCats = await ExpenseTransaction.aggregate([
       {
         $match: {
@@ -278,47 +234,13 @@ const getDashboardOverview = async (req, res) => {
     ]);
 
     // ====== Chart Data ======
-    // Weekly spend by day (current week)
-    const weeklyChartData = await ExpenseTransaction.aggregate([
-      {
-        $match: {
-          userId,
-          expense_date: { $gte: weekStart, $lte: weekEnd },
-          reportingMode: 'standard'
-        }
-      },
-      {
-        $group: {
-          _id: { $dayOfMonth: '$expense_date' },
-          totalAmount: { $sum: '$amount' },
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ]);
-
-    // Convert to day labels (Mon-Sun format)
-    const weeklyChartSeries = Array.from({ length: 7 }, (_, i) => {
-      const dayDate = new Date(weekStart);
-      dayDate.setDate(weekStart.getDate() + i);
-      const day = dayDate.getDate();
-      const dayName = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i];
-      const found = weeklyChartData.find(d => d._id === day);
-      return {
-        date: dayName,
-        amount: found ? found.totalAmount : 0
-      };
-    });
-
-    // Monthly cumulative spend (last 12 months) - running total
+    // Monthly cumulative spend (selected year) - running total
     const monthlyCumulativeData = [];
     let cumulativeTotal = 0;
-    for (let i = 11; i >= 0; i--) {
-      const monthDate = new Date(currentYear, now.getMonth() - i, 1);
-      const m = monthDate.getMonth();
-      const y = monthDate.getFullYear();
-      const mStart = new Date(y, m, 1);
-      const mEnd = new Date(y, m + 1, 0, 23, 59, 59, 999);
+    for (let i = 0; i < 12; i++) {
+      const monthDate = new Date(selectedYear, i, 1);
+      const mStart = new Date(selectedYear, i, 1);
+      const mEnd = new Date(selectedYear, i + 1, 0, 23, 59, 59, 999);
 
       const monthAgg = await ExpenseTransaction.aggregate([
         {
@@ -345,9 +267,9 @@ const getDashboardOverview = async (req, res) => {
     // Yearly cash in vs cash out by month
     const yearlyCashFlowData = [];
     for (let i = 0; i < 12; i++) {
-      const monthDate = new Date(currentYear, i, 1);
-      const mStart = new Date(currentYear, i, 1);
-      const mEnd = new Date(currentYear, i + 1, 0, 23, 59, 59, 999);
+      const monthDate = new Date(selectedYear, i, 1);
+      const mStart = new Date(selectedYear, i, 1);
+      const mEnd = new Date(selectedYear, i + 1, 0, 23, 59, 59, 999);
 
       // Cash in (earnings)
       const inAgg = await EarningTransaction.aggregate([
@@ -413,31 +335,30 @@ const getDashboardOverview = async (req, res) => {
       success: true,
       message: 'Dashboard overview retrieved successfully',
       data: {
-        week: {
-          spent: weeklySpent,
-          budget: weekBudgetAmount,
-          couldHaveSaved: weeklyCouldHaveSaved,
-          remaining: weekRemaining,
-          startDate: weekStart,
-          endDate: weekEnd
+        month: {
+          spent: monthSpent,
+          budget: monthBudget,
+          remaining: monthRemaining,
+          month: selectedMonth,
+          year: selectedYear,
+          startDate: monthStart,
+          endDate: monthEnd
         },
         year: {
           personalSpend: yearPersonalSpend,
           businessSpend: yearBusinessSpend,
           cashIn: yearCashIn,
           cashOut: yearCashOut,
-          year: currentYear
+          year: selectedYear
         },
         punishment: {
           lifetime: lifetimePunishment
         },
         topCategories: {
-          week: weeklyTopCats,
           month: monthlyTopCats,
           year: yearlyTopCats
         },
         charts: {
-          weeklySpend: weeklyChartSeries,
           monthlyCumulative: monthlyCumulativeData,
           yearlyCashFlow: yearlyCashFlowData
         }

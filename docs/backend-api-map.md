@@ -105,7 +105,6 @@ Files:
 - `routes/budgets.js`
 - `controllers/budgetController.js`
 - `models/BudgetSetting.js`
-- `models/WeeklyBudget.js`
 
 ### Monthly default
 
@@ -115,27 +114,10 @@ Files:
 - `PUT /monthly-default`
   - body: `{ defaultMonthlyBudget: Number }`
   - upserts a single `BudgetSetting` row per user
-  - does **not** update already-created `WeeklyBudget` rows
-
-### Weekly budget
-
-- `GET /weekly?weekDate=YYYY-MM-DD`
-  - returns the `WeeklyBudget` for the week containing `weekDate` (defaults to today)
-  - creates the row if it does not exist yet, deriving amount from current monthly default
-  - derivation formula: `monthlyDefault × 12 ÷ 52` rounded to 2 decimal places
-  - created row has `source = auto`
-- `PUT /weekly/:id`
-  - body: `{ amount: Number }`
-  - overrides the amount for one specific week
-  - sets `source = manual`
-  - ownership-checked via `userId`; returns `404` if not found or not owned
 
 ### Behavior rules
 
 - One `BudgetSetting` per user (upserted, not inserted multiple times)
-- One `WeeklyBudget` per user per week start date (unique index enforces this)
-- Monthly default changes affect only future week creations
-- Manual weekly overrides are isolated to the specific week
 
 ## Expense Categories
 
@@ -417,18 +399,19 @@ Base path: `/api/dashboard`
 ### Overview
 
 - `GET /overview`
-  - returns comprehensive dashboard payload with weekly, yearly, and lifetime stats
+  - query params: `month` (optional, 1-12) and `year` (optional, four-digit year); defaults to the current month/year
+  - returns comprehensive dashboard payload with selected month stats, selected year stats, chart data, and lifetime punishment stats
+  - invalid `month` or `year` returns `400`
   - returns: `{ success, message, data }`
   - file path: `controllers/dashboardController.js#getDashboardOverview`
   - response includes:
-    - `week`: this week's spent, budget, could-have-saved, remaining, date range
-    - `year`: this year's personal spend, business spend, cash in, cash out, year
+    - `month`: selected month's spent, budget, remaining, month, year, and date range
+    - `year`: selected year's personal spend, business spend, cash in, cash out, year
     - `punishment`: lifetime punishment total
-    - `topCategories`: arrays of top categories for week, month, year (10 items each)
+    - `topCategories`: arrays of top categories for month and year (10 items each)
     - `charts`: data series for:
-      - `weeklySpend`: 7 days (Mon-Sun) with daily spend amounts
-      - `monthlyCumulative`: 12 months (Jan-Dec current year) with cumulative (running total) spend amounts
-      - `yearlyCashFlow`: 12 months (Jan-Dec current year) with monthly cash-in and cash-out breakdown
+      - `monthlyCumulative`: 12 months (Jan-Dec selected year) with cumulative (running total) spend amounts
+      - `yearlyCashFlow`: 12 months (Jan-Dec selected year) with monthly cash-in and cash-out breakdown
 
 Files:
 
@@ -437,7 +420,7 @@ Files:
 
 ### Inclusion rules for dashboard
 
-- Personal expenses: counted in week, month, year, lifetime totals (reportingMode = standard or yearly_only)
+- Personal expenses: `standard` entries counted in selected month stats; `standard` and `yearly_only` entries counted in selected year totals and yearly chart/category data
 - Business expenses: counted **only** in yearly cash-out
 - Office expenses: **never** counted in any dashboard total
 - Savings/investments: **never** counted in any dashboard total
@@ -457,5 +440,5 @@ Files:
 - Change aggregated dashboard output:
   - `controllers/expenseController.js` for expense analytics
   - `controllers/dashboardController.js` for dashboard overview
-- Change budget default or weekly budget logic:
-  - `controllers/budgetController.js`, `models/BudgetSetting.js`, `models/WeeklyBudget.js`
+- Change budget default logic:
+  - `controllers/budgetController.js`, `models/BudgetSetting.js`

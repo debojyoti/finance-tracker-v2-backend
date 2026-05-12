@@ -58,7 +58,6 @@ Mongoose schemas for:
 - `Accomplishment`
 - `AccomplishmentTag`
 - `BudgetSetting`
-- `WeeklyBudget`
 
 ### `middleware/`
 
@@ -199,34 +198,31 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
 ### Budgets
 
 - `BudgetSetting`: one document per user storing `defaultMonthlyBudget`
-- `WeeklyBudget`: one document per user per week; created on first access
-- Weekly budget amount is derived from the monthly default using: `monthlyDefault × 12 ÷ 52` (rounded to 2 decimal places)
-- Changing the monthly default does not retroactively update existing `WeeklyBudget` rows
-- Overriding a weekly budget sets `source = manual` and only affects that specific week
-- Week boundaries are Monday 00:00 through Sunday 23:59:59.999 in server local time
+- Budget endpoints currently expose only the monthly default setting
+- The dashboard uses the current `defaultMonthlyBudget` as the selected month's budget value
 
 ### Dashboard
 
 - Single-endpoint overview at `/api/dashboard/overview` assembles all dashboard data in one call
+- Accepts optional `month` (1-12) and `year` query params for the selected dashboard month; defaults to the current month/year
 - Response envelope: `{ success: true, message, data: {...} }` following repo-wide convention
 - Returns:
-  - Weekly metrics: spent, budget, could-have-saved, remaining
-  - Yearly metrics: personal spend, business spend, cash in, cash out
+  - Selected month metrics: spent, budget, remaining, date range
+  - Selected year metrics: personal spend, business spend, cash in, cash out
   - Lifetime punishment total
-  - Top categories for week, month, year (10 per period)
+  - Top categories for month and year (10 per period)
   - Chart data:
-    - `weeklySpend`: 7-day series (Mon-Sun) with daily personal spend (standard reporting only)
-    - `monthlyCumulative`: 12-month running total of personal spend (standard + yearly_only reporting) within current year
-    - `yearlyCashFlow`: 12-month breakdown of cash-in (earnings) vs cash-out (personal + business) within current year
+    - `monthlyCumulative`: 12-month running total of personal spend (standard + yearly_only reporting) within selected year
+    - `yearlyCashFlow`: 12-month breakdown of cash-in (earnings) vs cash-out (personal + business) within selected year
 - Inclusion rules:
-  - Personal expenses (standard + yearly_only reporting modes) counted in week/month/year and cumulative charts
+  - Personal expenses with `reportingMode = standard` counted in selected month metrics
+  - Personal expenses with `reportingMode = standard` or `yearly_only` counted in selected year totals and yearly charts
   - Business expenses counted **only** in yearly cash-out and yearly cash-flow chart
   - Office expenses **excluded** from all dashboard totals and charts
   - Savings/investments **excluded** from all dashboard totals and charts
   - Earnings counted in yearly cash-in and yearly cash-flow chart
   - Punishment total reported separately (lifetime only)
 - Materializes recurring expenses before each read
-- Week boundaries follow expense reporting rules (Monday-Sunday, server local time)
 
 ## Current Feature Completeness
 
@@ -236,12 +232,12 @@ This idempotently sets `reportingMode = standard` and `entryPurpose = regular` o
 - Expense analytics: implemented end-to-end
 - Categories/types: implemented end-to-end
 - Accomplishments/tags: implemented end-to-end
-- Budgets: implemented end-to-end (monthly default + weekly snapshots)
+- Budgets: backend monthly default setting API
 - Earnings/Income: implemented end-to-end (with type management)
 - Office expenses: implemented end-to-end
 - Business expenses: implemented end-to-end
 - Savings and investments: implemented end-to-end (manual transactions + recurring plans)
-- Dashboard overview: implemented end-to-end (single endpoint with weekly, monthly, yearly, and lifetime sections)
+- Dashboard overview: implemented end-to-end (single endpoint with yearly, monthly chart, and lifetime sections)
 
 ## Data Ownership Pattern
 
@@ -276,12 +272,12 @@ If a new query does not use user scoping, it is likely wrong unless explicitly i
 
 `controllers/dashboardController.js` assembles dashboard data from multiple sources:
 
-- Queries personal expenses (with reporting-mode filtering) for week/month/year totals
+- Queries personal expenses (with reporting-mode filtering) for selected month stats, yearly totals, and chart data
 - Queries business expenses for yearly cash-out only
 - Queries earnings for yearly cash-in
 - Queries punishment entries for lifetime total
-- Builds top-category lists for week, month, year using MongoDB `$lookup` for category details
-- Generates chart series: weekly spend by day, monthly cumulative spend (12 months), yearly cash flow by month
+- Builds top-category lists for month and year using MongoDB `$lookup` for category details
+- Generates chart series: monthly cumulative spend (12 months), yearly cash flow by month
 - All queries scoped to `userId`
 - Materializes recurring expenses before expense reads
 
